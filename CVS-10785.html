@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VDT Report</title>
+  <style>
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1c2128;
+      --border: #30363d; --text: #e6edf3; --text-muted: #7d8590;
+      --accent: #4f6ef7;
+      --green: #3fb950; --green-bg: rgba(63,185,80,.12);
+      --orange: #d29922; --orange-bg: rgba(210,153,34,.12);
+      --red: #f85149; --red-bg: rgba(248,81,73,.12);
+      --blue: #58a6ff; --blue-bg: rgba(88,166,255,.12);
+      --gray: #7d8590; --gray-bg: rgba(125,133,144,.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system,'Pretendard',sans-serif; font-size:13px; line-height:1.6; overflow:hidden; }
+
+    /* ── Header ── */
+    .header { background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 12px 20px; }
+    .header-row { display:flex; justify-content:space-between; align-items:center; }
+    .header-left { display:flex; align-items:center; gap:10px; }
+    .team-badge { font-size:11px; background: rgba(79,110,247,.2); color: var(--accent); padding: 2px 8px; border-radius:10px; font-weight:600; }
+    .header-title { font-size:14px; font-weight:700; }
+    .header-ticket { font-size:11px; color: var(--text-muted); margin-top:2px; }
+    .status-badge { font-size:11px; color: var(--orange); background: var(--orange-bg); padding: 3px 10px; border-radius:10px; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display:flex; gap:20px; padding: 8px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+    .stat { display:flex; align-items:center; gap:5px; font-size:12px; cursor:default; }
+    .stat-num { font-weight:700; font-size:13px; }
+
+    /* ── Tabs ── */
+    .tabs { display:flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 20px; }
+    .tab { padding: 9px 14px; font-size:12px; cursor:pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: color .15s; user-select:none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Layout ── */
+    .content { display:flex; height: calc(100vh - 105px); }
+    .tab-panel { display:none; width:100%; }
+    .tab-panel.active { display:flex; }
+
+    /* ── Left panel ── */
+    .left-panel { width:36%; overflow-y:auto; border-right:1px solid var(--border); padding:18px; flex-shrink:0; }
+    .spec-title { font-size:16px; font-weight:700; margin-bottom:16px; line-height:1.4; }
+    .section { margin-bottom:18px; }
+    .section-label { font-size:10px; font-weight:700; color: var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+
+    /* Feature table */
+    .feat-table { width:100%; border-collapse:collapse; }
+    .feat-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .feat-table td:first-child { color: var(--text-muted); width:32%; background: var(--bg-card); white-space:nowrap; }
+
+    /* Subtask table */
+    .sub-table { width:100%; border-collapse:collapse; }
+    .sub-table th { font-size:11px; text-align:left; padding:5px 8px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .sub-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .st-done { color: var(--green); } .st-wip { color: var(--blue); } .st-todo { color: var(--gray); }
+
+    /* Warning */
+    .warn-card { background: rgba(210,153,34,.07); border-left:3px solid var(--orange); padding:8px 10px; margin-bottom:6px; border-radius:0 4px 4px 0; }
+    .warn-author { font-size:11px; color: var(--orange); margin-bottom:3px; }
+    .warn-text { font-size:12px; }
+
+    /* Bullet */
+    .bul { list-style:none; }
+    .bul li { padding:3px 0 3px 14px; font-size:12px; position:relative; }
+    .bul li::before { content:'•'; position:absolute; left:0; color: var(--text-muted); }
+
+    /* ── Right panel ── */
+    .right-panel { flex:1; overflow-y:auto; padding:18px; }
+    .panel-title { font-size:13px; font-weight:600; margin-bottom:12px; }
+
+    /* AC Table */
+    .ac-table { width:100%; border-collapse:collapse; }
+    .ac-table th { font-size:11px; text-align:left; padding:7px 9px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); position:sticky; top:0; z-index:1; }
+    .ac-table td { padding:7px 9px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .ac-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ac-id { font-family:monospace; font-size:11px; color: var(--text-muted); white-space:nowrap; }
+
+    /* Verdict badges */
+    .vb { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .vb-ok   { background: var(--green-bg);  color: var(--green);  }
+    .vb-warn { background: var(--orange-bg); color: var(--orange); }
+    .vb-unk  { background: var(--gray-bg);   color: var(--gray);   }
+    .vb-add  { background: var(--blue-bg);   color: var(--blue);   }
+    .vb-risk { background: var(--red-bg);    color: var(--red);    }
+
+    /* Right panel sections */
+    .right-section { margin-bottom: 20px; }
+    .right-section-title { font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:10px; }
+    .rec-list { padding-left:0; list-style:none; margin:0; display:flex; flex-direction:column; gap:6px; }
+    .rec-list li { display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); line-height:1.5; }
+    .rec-num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .rec-risk-row { display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .rec-risk-row:last-child { border-bottom:none; }
+
+    /* Dev panel */
+    .dev-section { margin-bottom:28px; }
+    .dev-section-title { font-size:14px; font-weight:700; color: var(--accent); margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+    /* Impact scope table */
+    .impact-table { width:100%; border-collapse:collapse; }
+    .impact-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impact-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impact-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ct-new  { color: var(--blue); }
+    .ct-mod  { color: var(--text-muted); }
+    .ct-cmod { color: var(--orange); }
+    .ct-done { color: var(--green); }
+    .ct-del  { color: var(--red); }
+    .ct-risky::before { content:'⚠️ '; }
+
+    /* Impl risk table */
+    .impl-table { width:100%; border-collapse:collapse; }
+    .impl-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impl-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impl-table tr:hover td { background: rgba(255,255,255,.018); }
+    .cx-high { color: var(--red); font-weight:600; }
+    .cx-med  { color: var(--orange); font-weight:600; }
+    .cx-low  { color: var(--green); font-weight:600; }
+
+    /* Impl order list */
+    .impl-order { list-style:none; counter-reset:order; }
+    .impl-order li { counter-increment:order; padding:6px 0 6px 28px; font-size:12px; position:relative; border-bottom:1px solid rgba(48,54,61,.6); }
+    .impl-order li:last-child { border-bottom:none; }
+    .impl-order li::before { content:counter(order); position:absolute; left:0; top:7px; width:18px; height:18px; background: var(--accent); color:#fff; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; text-align:center; }
+
+    /* Tech notes */
+    .tech-notes { list-style:none; }
+    .tech-notes li { padding:5px 0 5px 16px; font-size:12px; color: var(--text-muted); position:relative; border-bottom:1px solid rgba(48,54,61,.4); }
+    .tech-notes li:last-child { border-bottom:none; }
+    .tech-notes li::before { content:'•'; position:absolute; left:0; color: var(--accent); font-size:14px; line-height:1.4; }
+
+    /* ── Meeting ── */
+    .meeting-meta { font-size:12px; color: var(--text-muted); margin-bottom:24px; }
+    .meeting-sys {
+      font-size:11px; font-weight:700; color: var(--text-muted);
+      letter-spacing:.6px; padding:10px 0 8px;
+      border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+      margin: 20px 0 16px;
+    }
+    .meeting-sys:first-of-type { margin-top:0; border-top:none; }
+    .meeting-block { margin-bottom:22px; }
+    .meeting-agent { font-size:14px; font-weight:700; margin-bottom:8px; }
+    .meeting-content { font-size:13px; line-height:1.8; color: var(--text-muted); }
+    .meeting-content strong { color: var(--text); }
+    .consensus-list { list-style:none; margin-top:4px; }
+    .consensus-list li {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:8px 0; font-size:13px; line-height:1.6;
+      border-bottom:1px solid rgba(48,54,61,.5);
+    }
+    .consensus-list li:last-child { border-bottom:none; }
+    .cprio { font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; margin-top:2px; flex-shrink:0; }
+    .cp0 { background: var(--red-bg);    color: var(--red); }
+    .cp1 { background: var(--orange-bg); color: var(--orange); }
+    .cp2 { background: var(--green-bg);  color: var(--green); }
+
+    /* Meeting placeholder */
+    .empty-panel { width:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:13px; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+window.__VDT__ = {"ticket_key": "CVS-10785", "title": "Boss Raider Orcs 신규테마 추가", "analysis_date": "2026-04-22", "status": "Director 승인 대기", "stats": {"명확": 14, "모호": 0, "미명시": 0, "추가필요": 0, "리스크": 0}, "spec": {"purpose": "Boss Raiders Orcs 신규테마 추가에 대한 AE 설계 문서. 아래 14개의 Boss Raiders 관련 AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인 필요.", "key_features": [{"component": "AE 대상", "content": "14개의 Boss Raiders 관련 AE에서 Orcs 테마(theme_id=3) 플레이 시 theme_id 필드 검증"}, {"component": "theme_id 값 기준", "content": "0: original, 1: Dragon Lair, 2: Egyptian Guardians, 3: Orcs"}, {"component": "기능 브랜치", "content": "Features/2024_Q2/BossRaidersOrcField (191파생), 개발 이후 시간이 많이 지나서 브랜치 업데이트 후 재검토 필요"}], "subtasks": [{"key": "CVS-13243", "owner": "TA 검토", "status": "Done"}, {"key": "CVS-10786", "owner": "TA", "status": "Done"}, {"key": "CVS-10788", "owner": "서버", "status": "Done"}, {"key": "CVS-10787", "owner": "클라", "status": "Done"}, {"key": "CVS-13249", "owner": "사운드", "status": "Done"}], "incomplete_areas": [{"author": "", "comment": "개발 이후 시간이 많이 지나서 브랜치 업데이트 후 재검토 필요"}], "ui_ux_changes": [], "edge_cases": []}, "ac_items": [{"id": "S-01", "category": "S", "category_name": "시스템/서버/스테이지", "content": "client_boss_raiders_enter AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건(Orcs 테마 플레이), 검증 필드(theme_id), 기댓값(3) 모두 명시", "assumption": ""}, {"id": "S-02", "category": "S", "category_name": "시스템/서버/스테이지", "content": "client_boss_raiders_popup AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-03", "category": "S", "category_name": "시스템/서버/스테이지", "content": "client_click_boss_raiders_icon AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-04", "category": "S", "category_name": "시스템/서버/스테이지", "content": "client_click_boss_raiders_max_bet AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-05", "category": "S", "category_name": "시스템/서버/스테이지", "content": "client_click_boss_raiders_popup AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-06", "category": "S", "category_name": "시스템/서버/스테이지", "content": "client_club_boss_raiders_result_popup AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-07", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_boss_raiders_bonus AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-08", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_boss_raiders_contribute AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-09", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_boss_raiders_deal_compensation AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-10", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_boss_raiders_deal_result AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-11", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_boss_raiders_deal_spin AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-12", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_boss_raiders_spin AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-13", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_club_boss_raiders_league_point AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}, {"id": "S-14", "category": "S", "category_name": "시스템/서버/스테이지", "content": "server_club_boss_raiders_result AE에서 Orcs 테마 플레이 시 theme_id 필드가 3으로 찍히는지 확인", "source": "AE 설계 문서 (Confluence: CVS 241 AE)", "verdict": "✅", "verdict_label": "명확", "evidence": "이벤트명, 조건, 검증 필드, 기댓값 모두 명시", "assumption": ""}], "developer": {"impact_scope": [{"module": "Analytics Event (AE) — theme_id 필드", "change_type": "수정", "is_risky": true, "detail": "14개 AE 전체에 theme_id 필드가 신규 enum 값(3=Orcs)을 수용하도록 스키마가 확장됨. 기존 0/1/2 값을 소비하는 BI 파이프라인·대시보드·집계 쿼리가 새 값을 미처 처리하지 못할 경우 데이터 누락 또는 오분류 발생 가능."}, {"module": "Features/2024_Q2/BossRaidersOrcField 브랜치 (191 파생)", "change_type": "수정", "is_risky": true, "detail": "장기 미통합 피처 브랜치. main/trunk 대비 누적 diff가 크며, 브랜치 업데이트 과정에서 충돌 해소 실수로 기존 Boss Raiders 로직(Original/Dragon Lair/Egyptian Guardians 테마 경로)이 회귀할 위험이 있음."}, {"module": "Boss Raiders 클라이언트 — 테마 분기 로직", "change_type": "수정", "is_risky": false, "detail": "theme_id=3 분기 추가. 기존 0~2 분기 로직을 건드리므로 단순 추가처럼 보이나 switch/enum 범위 밖 값 처리가 없으면 미정의 동작 발생 가능. 단, 서브태스크 CVS-10787 완료 상태이므로 현재 위험도는 낮음."}, {"module": "서버 — Boss Raiders 세션/이벤트 처리", "change_type": "완료", "is_risky": false, "detail": "CVS-10788 완료. theme_id=3 수신 및 저장 처리 확인됨. 다만 브랜치 업데이트 후 서버 측 재배포 없이 클라만 올라갈 경우 버전 불일치 가능성 주의."}, {"module": "사운드 — Orcs 테마 에셋", "change_type": "완료", "is_risky": false, "detail": "CVS-13249 완료. 에셋 준비 자체는 리스크 없으나, 브랜치 리베이스 후 에셋 번들 참조 경로가 변경되지 않았는지 확인 필요."}], "impl_risks": [{"feature": "장기 피처 브랜치 업데이트 및 충돌 해소", "complexity": "High", "risk": "191 파생 브랜치가 오랜 기간 main과 격리되어 있어 리베이스/머지 시 충돌 범위를 예측하기 어려움. 잘못된 충돌 해소로 기존 테마(0~2) 로직 회귀 또는 AE 필드 누락 발생 가능."}, {"feature": "14개 AE의 theme_id=3 정합성 검증", "complexity": "Med", "risk": "AE가 14개로 분산되어 있어 일부 이벤트에서 theme_id 필드가 누락되거나 기본값(0)으로 fallback될 가능성이 있음. 전수 QA 없이 샘플 검증만 할 경우 누락 AE가 프로덕션에 도달할 수 있음."}, {"feature": "BI/데이터 파이프라인 theme_id enum 확장 대응", "complexity": "Med", "risk": "다운스트림 BI 쿼리·대시보드가 theme_id ENUM을 하드코딩하고 있을 경우 Orcs(3) 데이터가 'unknown' 또는 집계 제외로 처리되어 KPI 수치 왜곡 발생 가능. 데이터팀 사전 확인 필요."}, {"feature": "브랜치 업데이트 후 서버·클라 버전 정합", "complexity": "Med", "risk": "서브태스크가 모두 Done 상태이지만 브랜치 업데이트 이후 재빌드·재배포 순서가 맞지 않으면 클라가 보낸 theme_id=3을 서버가 구버전으로 처리하는 런타임 에러 가능."}, {"feature": "Orcs 테마 진입 조건 및 잠금 해제 로직", "complexity": "Low", "risk": "기획서에 theme_id=3 진입 조건(해금 방식, 순서 등)이 명시되지 않음. 조건 없이 노출될 경우 미완성 콘텐츠가 유저에게 접근 가능해질 수 있음."}], "impl_order": ["1순위 — 피처 브랜치 업데이트 및 충돌 해소: 이후 모든 검증이 최신 코드베이스 기준이어야 하므로 가장 먼저 수행. 충돌 해소 후 기존 테마(0~2) 동작 회귀 여부를 즉시 smoke test로 확인.", "2순위 — 14개 AE 전수 검증(theme_id=3 필드 포함 여부): 브랜치가 안정된 후 Orcs 테마 플레이 시나리오를 기준으로 모든 AE를 하나씩 트리거하여 theme_id=3이 정확히 기록되는지 확인.", "3순위 — BI/데이터 파이프라인 enum 확장 협의 및 반영: AE 검증 완료 후 데이터팀에 theme_id=3 추가 사실을 공유하고 관련 쿼리·대시보드 업데이트를 릴리즈 전에 완료.", "4순위 — 서버·클라 통합 배포 순서 및 버전 정합 확인: 브랜치 업데이트 후 서버 재배포가 선행되고 클라가 후속 배포되는 순서를 배포 계획서에 명문화."], "tech_notes": ["피처 브랜치(191 파생)의 누적 격리 기간이 길어 리베이스 충돌 해소 실수가 가장 큰 단일 리스크이므로, 업데이트 직후 기존 테마 0~2 전체 경로에 대한 회귀 테스트를 의무화해야 한다.", "14개 AE 중 theme_id 필드를 공통 유틸/베이스 클래스에서 주입하는지, 각 AE별로 개별 세팅하는지에 따라 누락 위험 범위가 달라지므로 구현 방식을 먼저 파악한 뒤 검증 전략을 수립해야 한다.", "BI 파이프라인이 theme_id를 ENUM 타입으로 제한하고 있을 경우 새 값(3) 투입 시 파이프라인 오류로 데이터 유실이 발생할 수 있으므로 릴리즈 전 데이터팀과 반드시 사전 협의해야 한다.", "기획서에 Orcs 테마 해금 조건이 명시되어 있지 않으므로, QA 전에 PM/기획팀으로부터 진입 조건을 확인하고 클라이언트 가드 로직 존재 여부를 점검해야 한다."]}, "meeting": {"date": "2026-04-22", "participants": ["기획 에이전트", "개발 에이전트", "QA 에이전트"], "rounds": [{"round": 1, "agent": "기획 에이전트", "agent_type": "planner", "content": "오늘 회의 주제는 Boss Raider Orcs 신규 테마 추가 피처의 릴리즈 준비 상태 점검입니다. **AC 14개 항목이 모두 ✅ 명확하게 정의되어 있어 기획 완성도 자체는 문제없습니다.** 다만 이 피처가 브랜치 기준으로 오랜 시간이 경과했기 때문에, 기획서의 의도가 현재 main 코드베이스와 여전히 일치하는지 **브랜치 업데이트 후 재검토가 선행되어야 합니다.** 특히 기획서에 Orcs 테마 진입 조건 및 잠금 해제 로직이 명시되어 있지 않은 부분은 보완 정의가 필요합니다."}, {"round": 1, "agent": "개발 에이전트", "agent_type": "developer", "content": "기획 에이전트의 브랜치 재검토 우선순위 판단에 동의합니다. 가장 큰 리스크는 **191 파생 브랜치가 장기간 main과 격리된 상태**라는 점입니다. 충돌 해소 과정에서 기존 테마(1, 2) 로직에 regression이 발생할 가능성을 배제할 수 없습니다. **브랜치 업데이트를 P0으로 즉시 착수**해야 합니다. 또한 **14개 AE 전체에서 theme_id=3 정합성을 코드 레벨로 검증**하고, **BI/데이터 파이프라인 담당팀에 Orcs(3) enum 확장 사전 고지**가 필요합니다."}, {"round": 1, "agent": "QA 에이전트", "agent_type": "qa", "content": "QA 관점에서 **AC 14개 항목 전체가 테스트 가능한 형태로 명확히 정의**되어 있습니다. 고위험 판정 항목은 없습니다. 그러나 **브랜치 머지 후 regression 가능성**은 QA 입장에서도 가장 중요한 포인트입니다. 머지 완료 즉시 **기존 테마(1, 2) 전체 회귀 테스트를 포함한 테스트 플랜을 가동**할 예정입니다. 잠금 해제 조건이 확정되지 않으면 해당 시나리오 TC를 작성할 수 없으므로 **해금 조건 스펙은 이번 스프린트 내 확정**되어야 합니다."}, {"round": 2, "agent": "기획 에이전트", "agent_type": "planner", "content": "브랜치 업데이트 최우선에 이견 없습니다. **잠금 해제 조건은 이번 주 내로 스펙을 작성하여 개발·QA 에이전트에게 공유**하겠습니다. BI 파이프라인 이슈는 개발 에이전트가 담당팀과 직접 조율해 주시면 기획 측에서 ENUM 정의 문서를 지원하겠습니다."}, {"round": 2, "agent": "개발 에이전트", "agent_type": "developer", "content": "**브랜치 업데이트 작업은 오늘부터 즉시 착수**하고, 충돌 해소 완료 후 14개 AE theme_id=3 검증을 코드 리뷰 체크리스트 강제 항목으로 추가하겠습니다. **BI 파이프라인 담당팀에는 오늘 중으로 Orcs(3) enum 확장 노티를 보내겠습니다.** 서버·클라 재배포 순서는 배포 프로세스 문서를 업데이트하여 QA 에이전트와 사전 공유하겠습니다."}, {"round": 2, "agent": "QA 에이전트", "agent_type": "qa", "content": "**테스트 플랜은 브랜치 머지 완료 시점에 맞춰 즉시 실행 가능한 상태로 준비**해 두겠습니다. 회귀 테스트 범위는 기존 테마 1·2 전체와 신규 테마 3 AC 14개를 포함합니다. 배포 순서 문서 수령 즉시 **배포 순서 불일치 시나리오에 대한 TC도 추가**하겠습니다."}], "consensus": [{"priority": "P0", "action": "191 파생 브랜치를 main 기준으로 즉시 리베이스/머지 착수, 충돌 해소 완료 후 기존 테마 0~2 smoke test 실행 (담당: 개발팀)"}, {"priority": "P0", "action": "BI/데이터 파이프라인 담당팀에 Orcs theme_id=3 ENUM 확장 사전 고지 오늘 중 발송 (담당: 개발팀)"}, {"priority": "P1", "action": "Orcs 테마 잠금 해제 조건 스펙 이번 주 내 문서화 및 개발·QA 공유 (담당: 기획팀)"}, {"priority": "P1", "action": "14개 AE 전체 theme_id=3 명시 여부를 코드 리뷰 필수 체크리스트 항목으로 추가하여 머지 전 검증 (담당: 개발팀)"}, {"priority": "P1", "action": "브랜치 머지 완료 즉시 기존 테마 1·2 전체 회귀 테스트 + 신규 테마 3 AC 14개 테스트 플랜 실행 (담당: QA팀)"}, {"priority": "P2", "action": "향후 장기 피처 브랜치 운영 시 2주 단위 main 동기화 주기 팀 내 프로세스로 권고 (담당: 개발팀 제안 → 팀 전체)"}]}};
+const D = window.__VDT__;
+
+const VERDICT = {
+  '✅': { cls:'vb-ok',   label:'명확',    stat:'명확'   },
+  '⚠️': { cls:'vb-warn', label:'모호',    stat:'모호'   },
+  '?':  { cls:'vb-unk',  label:'미명시',  stat:'미명시' },
+  '+':  { cls:'vb-add',  label:'추가필요',stat:'추가필요'},
+  '🔴': { cls:'vb-risk', label:'리스크',  stat:'리스크' },
+};
+
+function vbadge(v) {
+  const m = VERDICT[v] || VERDICT['?'];
+  return `<span class="vb ${m.cls}">${v} ${m.label}</span>`;
+}
+
+function stBadge(s) {
+  if (s === 'Done')        return `<span class="st-done">✅ Done</span>`;
+  if (s === 'IN PROGRESS') return `<span class="st-wip">⏳ IN PROGRESS</span>`;
+  return `<span class="st-todo">○ ${s||'TODO'}</span>`;
+}
+
+function renderHeader() {
+  return `
+    <div class="header">
+      <div class="header-row">
+        <div class="header-left">
+          <span class="team-badge">🤖 가상 개발팀</span>
+          <div>
+            <div class="header-title">${D.title} — 기획 문서 리스크 분석</div>
+            <div class="header-ticket">${D.ticket_key}</div>
+          </div>
+        </div>
+        <span class="status-badge">⏳ Director 승인 대기 — ${D.analysis_date} 분석 완료</span>
+      </div>
+    </div>`;
+}
+
+function renderStats() {
+  const s = D.stats || {};
+  const items = [
+    { v:'✅', key:'명확',    cls:'green'  },
+    { v:'⚠️', key:'모호',    cls:'orange' },
+    { v:'?',  key:'미명시',  cls:'gray'   },
+    { v:'+',  key:'추가필요',cls:'blue'   },
+    { v:'🔴', key:'리스크',  cls:'red'    },
+  ];
+  return `<div class="stats-bar">${
+    items.map(i => `
+      <div class="stat">
+        <span style="color:var(--${i.cls})">${i.v}</span>
+        <span class="stat-num" style="color:var(--${i.cls})">${s[i.key]||0}</span>
+        <span style="color:var(--text-muted)">${i.key}</span>
+      </div>`).join('')
+  }</div>`;
+}
+
+function renderTabs() {
+  return `<div class="tabs">
+    <div class="tab active" onclick="switchTab('spec',this)">📋 기획서</div>
+    <div class="tab" onclick="switchTab('dev',this)">🛠 개발 리스크</div>
+    <div class="tab" onclick="switchTab('meeting',this)">💬 회의록</div>
+  </div>`;
+}
+
+function renderSpecLeft() {
+  const sp = D.spec || {};
+  let html = `<div class="spec-title">기획서 요약: ${D.title}</div>`;
+
+  if (sp.purpose) html += `
+    <div class="section">
+      <div class="section-label">목적 &amp; 배경</div>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.7">${sp.purpose}</p>
+    </div>`;
+
+  if ((sp.key_features||[]).length) html += `
+    <div class="section">
+      <div class="section-label">주요 기능</div>
+      <table class="feat-table"><tbody>${
+        sp.key_features.map(f=>`<tr><td>${f.component}</td><td>${f.content}</td></tr>`).join('')
+      }</tbody></table>
+    </div>`;
+
+  if ((sp.subtasks||[]).length) html += `
+    <div class="section">
+      <div class="section-label">서브태스크 현황</div>
+      <table class="sub-table">
+        <thead><tr><th>서브태스크</th><th>담당</th><th>상태</th></tr></thead>
+        <tbody>${sp.subtasks.map(t=>`<tr><td>${t.key}</td><td>${t.owner}</td><td>${stBadge(t.status)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  if ((sp.incomplete_areas||[]).length) html += `
+    <div class="section">
+      <div class="section-label">⚠️ 미완성 영역</div>
+      ${sp.incomplete_areas.map(a => {
+        const author = typeof a === 'object' ? a.author : '';
+        const text   = typeof a === 'object' ? a.comment : a;
+        return `<div class="warn-card">${author?`<div class="warn-author">${author} 코멘트</div>`:''}<div class="warn-text">${text}</div></div>`;
+      }).join('')}
+    </div>`;
+
+  if ((sp.ui_ux_changes||[]).length) html += `
+    <div class="section">
+      <div class="section-label">UI/UX 변경사항</div>
+      <ul class="bul">${sp.ui_ux_changes.map(u=>`<li>${u}</li>`).join('')}</ul>
+    </div>`;
+
+  if ((sp.edge_cases||[]).length) html += `
+    <div class="section">
+      <div class="section-label">예외/엣지케이스 (기획서 명시분)</div>
+      <ul class="bul">${sp.edge_cases.map(e=>`<li>${e}</li>`).join('')}</ul>
+    </div>`;
+
+  return html;
+}
+
+function renderRightPanel() {
+  const items   = D.ac_items || [];
+  const dev     = D.developer || {};
+  const order   = dev.impl_order || [];
+  const risks   = dev.impl_risks || [];
+
+  // ── 통계 실시간 재계산 (stats 바와 일치 보장) ──
+  const realStats = {'명확':0,'모호':0,'미명시':0,'추가필요':0,'리스크':0};
+  const lmap = {'✅':'명확','⚠️':'모호','?':'미명시','+':'추가필요','🔴':'리스크'};
+  items.forEach(ac => { const k = lmap[ac.verdict||'?']; if(k) realStats[k]++; });
+  const total = items.length;
+
+  // ── AC 판정 통계 배지 ──
+  const statBadges = Object.entries(realStats)
+    .filter(([,n]) => n > 0)
+    .map(([k,n]) => {
+      const icon = Object.entries(lmap).find(([,v])=>v===k)?.[0] || '?';
+      const vcls = VERDICT[icon]?.cls || 'vb-unk';
+      return `<span class="vb ${vcls}" style="margin-right:4px">${icon} ${k} ${n}</span>`;
+    }).join('');
+
+  // ── AC 테이블 ──
+  const acRows = items.map(ac => `
+    <tr>
+      <td class="ac-id">${ac.id||''}</td>
+      <td>${ac.content||''}</td>
+      <td>${vbadge(ac.verdict||'?')}</td>
+      <td style="color:var(--text-muted)">${ac.evidence||'—'}</td>
+      <td style="color:var(--text-muted);font-style:italic">${ac.assumption||'—'}</td>
+    </tr>`).join('');
+
+  // ── 개발팀 권고사항 (impl_order) ──
+  let devSection = '';
+  if (order.length || risks.length) {
+    const orderItems = order.map((o, i) => `
+      <li>
+        <span class="rec-num">${i+1}</span>
+        <span>${o}</span>
+      </li>`).join('');
+
+    const riskItems = risks.filter(r => r.complexity === 'High').map(r => `
+      <div class="rec-risk-row">
+        <span class="cx-high">🔴 High</span>
+        <span style="font-weight:600;margin: 0 6px">${r.feature}</span>
+        <span style="color:var(--text-muted)">— ${r.risk}</span>
+      </div>`).join('');
+
+    devSection = `
+      <div class="right-section" style="margin-top:20px">
+        <div class="right-section-title">🛠 개발팀 권고사항</div>
+        ${order.length ? `<ol class="rec-list">${orderItems}</ol>` : ''}
+        ${riskItems ? `<div class="rec-risks" style="margin-top:10px">${riskItems}</div>` : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="right-section-title" style="margin-bottom:6px">
+      AC별 판정 테이블 <span style="color:var(--text-muted);font-weight:400">(${total}건)</span>
+    </div>
+    <div style="margin-bottom:10px">${statBadges}</div>
+    <table class="ac-table">
+      <thead><tr>
+        <th style="width:56px">AC#</th>
+        <th>내용</th>
+        <th style="width:86px">판정</th>
+        <th style="width:26%">근거</th>
+        <th style="width:22%">가정/추론</th>
+      </tr></thead>
+      <tbody>${acRows}</tbody>
+    </table>
+    ${devSection}`;
+}
+
+function ctClass(type, isRisky) {
+  const t = (type||'').trim();
+  if (isRisky)           return 'ct-risky ct-cmod';
+  if (t === '신규')      return 'ct-new';
+  if (t === '수정')      return 'ct-mod';
+  if (t === '공용 수정') return 'ct-cmod';
+  if (t === '완료')      return 'ct-done';
+  if (t === '삭제')      return 'ct-del';
+  return 'ct-mod';
+}
+function cxClass(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return 'cx-high';
+  if (v === 'med')  return 'cx-med';
+  return 'cx-low';
+}
+function cxIcon(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return '🔴';
+  if (v === 'med')  return '🟠';
+  return '🟢';
+}
+
+function renderDevPanel() {
+  const dev = D.developer || {};
+  const impact   = dev.impact_scope  || D.impact_scope  || [];
+  const implRisk = dev.impl_risks    || D.impl_risks     || [];
+  const order    = dev.impl_order    || D.impl_order     || [];
+  const notes    = dev.tech_notes    || D.tech_notes     || [];
+  const title    = D.title || '';
+
+  let html = `<h2 style="font-size:18px;font-weight:700;margin-bottom:22px">개발 리스크 분석: ${title}</h2>`;
+
+  // 영향 범위 분석
+  if (impact.length) {
+    const rows = impact.map(i => `
+      <tr>
+        <td>${i.module||''}</td>
+        <td class="${ctClass(i.change_type, i.is_risky)}">${i.is_risky?'⚠️ ':''}${i.change_type||''}</td>
+        <td style="color:var(--text-muted)">${i.detail||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">영향 범위 분석</div>
+        <table class="impact-table">
+          <thead><tr><th style="width:220px">모듈/영역</th><th style="width:120px">변경 유형</th><th>상세</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 리스크 테이블
+  if (implRisk.length) {
+    const rows = implRisk.map(r => `
+      <tr>
+        <td>${r.feature||''}</td>
+        <td class="${cxClass(r.complexity)}">${cxIcon(r.complexity)} ${r.complexity||''}</td>
+        <td style="color:var(--text-muted)">${r.risk||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 리스크 테이블</div>
+        <table class="impl-table">
+          <thead><tr><th>기능</th><th style="width:100px">복잡도</th><th>리스크</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 순서 권고
+  if (order.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 순서 권고</div>
+        <ol class="impl-order">${order.map(o=>`<li>${o}</li>`).join('')}</ol>
+      </div>`;
+  }
+
+  // 기술 리스크 & 주의사항
+  if (notes.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">기술 리스크 &amp; 주의사항</div>
+        <ul class="tech-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  if (!impact.length && !implRisk.length && !order.length && !notes.length) {
+    html += `<div style="color:var(--text-muted);font-size:13px">개발 리스크 항목이 없습니다.</div>`;
+  }
+
+  return html;
+}
+
+function render() {
+  document.getElementById('app').innerHTML = `
+    ${renderHeader()}
+    ${renderStats()}
+    ${renderTabs()}
+    <div class="content">
+      <div class="tab-panel active" id="tab-spec">
+        <div class="left-panel">${renderSpecLeft()}</div>
+        <div class="right-panel">${renderRightPanel()}</div>
+      </div>
+      <div class="tab-panel" id="tab-dev" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderDevPanel()}
+      </div>
+      <div class="tab-panel" id="tab-meeting" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderMeeting()}
+      </div>
+    </div>`;
+}
+
+function boldify(text) {
+  return (text||'').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+const AGENT_COLOR = {
+  planner:   'var(--accent)',
+  developer: 'var(--orange)',
+  qa:        'var(--green)',
+  ta:        'var(--blue)',
+};
+
+function renderMeeting() {
+  const m = D.meeting;
+  if (!m || (!m.rounds && !m.consensus)) {
+    return `<div class="empty-panel">회의록이 없습니다.</div>`;
+  }
+
+  let html = `
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:6px">
+      회의록: ${D.ticket_key} ${D.title} 분석
+    </h2>
+    <div class="meeting-meta">
+      일시: ${m.date||D.analysis_date} | 참가자: ${(m.participants||[]).join(', ')}
+    </div>
+    <div class="meeting-sys">[SYS] 회의 시작</div>
+  `;
+
+  let lastRound = 0;
+  for (const r of (m.rounds||[])) {
+    if (r.round > lastRound && lastRound > 0) {
+      html += `<div class="meeting-sys">[SYS] Round ${r.round} 시작</div>`;
+    }
+    lastRound = r.round;
+    const color = AGENT_COLOR[r.agent_type] || 'var(--accent)';
+    html += `
+      <div class="meeting-block">
+        <div class="meeting-agent" style="color:${color}">Round ${r.round} — ${r.agent}</div>
+        <div class="meeting-content">${boldify(r.content)}</div>
+      </div>`;
+  }
+
+  if ((m.consensus||[]).length) {
+    html += `<div class="meeting-sys">[SYS] 합의 도출</div>
+    <ul class="consensus-list">
+      ${m.consensus.map(c => {
+        const p = (c.priority||'P1');
+        const cls = p === 'P0' ? 'cp0' : p === 'P1' ? 'cp1' : 'cp2';
+        return `<li><span class="cprio ${cls}">${p}</span><span>${boldify(c.action)}</span></li>`;
+      }).join('')}
+    </ul>`;
+  }
+
+  return html;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  const panel = document.getElementById('tab-' + name);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'flex'; }
+}
+
+render();
+</script>
+</body>
+</html>
