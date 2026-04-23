@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VDT Report</title>
+  <style>
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1c2128;
+      --border: #30363d; --text: #e6edf3; --text-muted: #7d8590;
+      --accent: #4f6ef7;
+      --green: #3fb950; --green-bg: rgba(63,185,80,.12);
+      --orange: #d29922; --orange-bg: rgba(210,153,34,.12);
+      --red: #f85149; --red-bg: rgba(248,81,73,.12);
+      --blue: #58a6ff; --blue-bg: rgba(88,166,255,.12);
+      --gray: #7d8590; --gray-bg: rgba(125,133,144,.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system,'Pretendard',sans-serif; font-size:13px; line-height:1.6; overflow:hidden; }
+
+    /* ── Header ── */
+    .header { background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 12px 20px; }
+    .header-row { display:flex; justify-content:space-between; align-items:center; }
+    .header-left { display:flex; align-items:center; gap:10px; }
+    .team-badge { font-size:11px; background: rgba(79,110,247,.2); color: var(--accent); padding: 2px 8px; border-radius:10px; font-weight:600; }
+    .header-title { font-size:14px; font-weight:700; }
+    .header-ticket { font-size:11px; color: var(--text-muted); margin-top:2px; }
+    .status-badge { font-size:11px; color: var(--orange); background: var(--orange-bg); padding: 3px 10px; border-radius:10px; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display:flex; gap:20px; padding: 8px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+    .stat { display:flex; align-items:center; gap:5px; font-size:12px; cursor:default; }
+    .stat-num { font-weight:700; font-size:13px; }
+
+    /* ── Tabs ── */
+    .tabs { display:flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 20px; }
+    .tab { padding: 9px 14px; font-size:12px; cursor:pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: color .15s; user-select:none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Layout ── */
+    .content { display:flex; height: calc(100vh - 105px); }
+    .tab-panel { display:none; width:100%; }
+    .tab-panel.active { display:flex; }
+
+    /* ── Left panel ── */
+    .left-panel { width:36%; overflow-y:auto; border-right:1px solid var(--border); padding:18px; flex-shrink:0; }
+    .spec-title { font-size:16px; font-weight:700; margin-bottom:16px; line-height:1.4; }
+    .section { margin-bottom:18px; }
+    .section-label { font-size:10px; font-weight:700; color: var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+
+    /* Feature table */
+    .feat-table { width:100%; border-collapse:collapse; }
+    .feat-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .feat-table td:first-child { color: var(--text-muted); width:32%; background: var(--bg-card); white-space:nowrap; }
+
+    /* Subtask table */
+    .sub-table { width:100%; border-collapse:collapse; }
+    .sub-table th { font-size:11px; text-align:left; padding:5px 8px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .sub-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .st-done { color: var(--green); } .st-wip { color: var(--blue); } .st-todo { color: var(--gray); }
+
+    /* Warning */
+    .warn-card { background: rgba(210,153,34,.07); border-left:3px solid var(--orange); padding:8px 10px; margin-bottom:6px; border-radius:0 4px 4px 0; }
+    .warn-author { font-size:11px; color: var(--orange); margin-bottom:3px; }
+    .warn-text { font-size:12px; }
+
+    /* Bullet */
+    .bul { list-style:none; }
+    .bul li { padding:3px 0 3px 14px; font-size:12px; position:relative; }
+    .bul li::before { content:'•'; position:absolute; left:0; color: var(--text-muted); }
+
+    /* ── Right panel ── */
+    .right-panel { flex:1; overflow-y:auto; padding:18px; }
+    .panel-title { font-size:13px; font-weight:600; margin-bottom:12px; }
+
+    /* AC Table */
+    .ac-table { width:100%; border-collapse:collapse; }
+    .ac-table th { font-size:11px; text-align:left; padding:7px 9px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); position:sticky; top:0; z-index:1; }
+    .ac-table td { padding:7px 9px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .ac-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ac-id { font-family:monospace; font-size:11px; color: var(--text-muted); white-space:nowrap; }
+
+    /* Verdict badges */
+    .vb { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .vb-ok   { background: var(--green-bg);  color: var(--green);  }
+    .vb-warn { background: var(--orange-bg); color: var(--orange); }
+    .vb-unk  { background: var(--gray-bg);   color: var(--gray);   }
+    .vb-add  { background: var(--blue-bg);   color: var(--blue);   }
+    .vb-risk { background: var(--red-bg);    color: var(--red);    }
+
+    /* Right panel sections */
+    .right-section { margin-bottom: 20px; }
+    .right-section-title { font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:10px; }
+    .rec-list { padding-left:0; list-style:none; margin:0; display:flex; flex-direction:column; gap:6px; }
+    .rec-list li { display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); line-height:1.5; }
+    .rec-num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .rec-risk-row { display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .rec-risk-row:last-child { border-bottom:none; }
+
+    /* Dev panel */
+    .dev-section { margin-bottom:28px; }
+    .dev-section-title { font-size:14px; font-weight:700; color: var(--accent); margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+    /* Impact scope table */
+    .impact-table { width:100%; border-collapse:collapse; }
+    .impact-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impact-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impact-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ct-new  { color: var(--blue); }
+    .ct-mod  { color: var(--text-muted); }
+    .ct-cmod { color: var(--orange); }
+    .ct-done { color: var(--green); }
+    .ct-del  { color: var(--red); }
+    .ct-risky::before { content:'⚠️ '; }
+
+    /* Impl risk table */
+    .impl-table { width:100%; border-collapse:collapse; }
+    .impl-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impl-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impl-table tr:hover td { background: rgba(255,255,255,.018); }
+    .cx-high { color: var(--red); font-weight:600; }
+    .cx-med  { color: var(--orange); font-weight:600; }
+    .cx-low  { color: var(--green); font-weight:600; }
+
+    /* Impl order list */
+    .impl-order { list-style:none; counter-reset:order; }
+    .impl-order li { counter-increment:order; padding:6px 0 6px 28px; font-size:12px; position:relative; border-bottom:1px solid rgba(48,54,61,.6); }
+    .impl-order li:last-child { border-bottom:none; }
+    .impl-order li::before { content:counter(order); position:absolute; left:0; top:7px; width:18px; height:18px; background: var(--accent); color:#fff; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; text-align:center; }
+
+    /* Tech notes */
+    .tech-notes { list-style:none; }
+    .tech-notes li { padding:5px 0 5px 16px; font-size:12px; color: var(--text-muted); position:relative; border-bottom:1px solid rgba(48,54,61,.4); }
+    .tech-notes li:last-child { border-bottom:none; }
+    .tech-notes li::before { content:'•'; position:absolute; left:0; color: var(--accent); font-size:14px; line-height:1.4; }
+
+    /* ── Meeting ── */
+    .meeting-meta { font-size:12px; color: var(--text-muted); margin-bottom:24px; }
+    .meeting-sys {
+      font-size:11px; font-weight:700; color: var(--text-muted);
+      letter-spacing:.6px; padding:10px 0 8px;
+      border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+      margin: 20px 0 16px;
+    }
+    .meeting-sys:first-of-type { margin-top:0; border-top:none; }
+    .meeting-block { margin-bottom:22px; }
+    .meeting-agent { font-size:14px; font-weight:700; margin-bottom:8px; }
+    .meeting-content { font-size:13px; line-height:1.8; color: var(--text-muted); }
+    .meeting-content strong { color: var(--text); }
+    .consensus-list { list-style:none; margin-top:4px; }
+    .consensus-list li {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:8px 0; font-size:13px; line-height:1.6;
+      border-bottom:1px solid rgba(48,54,61,.5);
+    }
+    .consensus-list li:last-child { border-bottom:none; }
+    .cprio { font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; margin-top:2px; flex-shrink:0; }
+    .cp0 { background: var(--red-bg);    color: var(--red); }
+    .cp1 { background: var(--orange-bg); color: var(--orange); }
+    .cp2 { background: var(--green-bg);  color: var(--green); }
+
+    /* Meeting placeholder */
+    .empty-panel { width:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:13px; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+window.__VDT__ = {"ticket_key": "CVS-2380", "title": "[Feature] VIP Chat", "analysis_date": "2026-04-23", "status": "Director 승인 대기", "stats": {"명확": 38, "모호": 2, "미명시": 0, "추가필요": 0, "리스크": 0}, "spec": {"purpose": "CRM 팀에서 직접적으로, 특정 유저에게 DM을 보낼 수 있는 기능을 개발하고 VIP 유저 캐어 방법을 강화한다. 과금을 많이 하는 유저가 개인적인 이슈가 생겼을 때, 긴급하게 해당 유저에게 인게임에서 소통하고자 기획되었다. 이메일보다 긴말하게 케어할 수 있는 채팅 시스템이 있었으면 좋겠다는 니즈에서 빌드업 되었다.", "key_features": [{"component": "CRM Team", "content": "DM을 유저에게 보낼 수 있는 기능 추가"}, {"component": "User Chat UI", "content": "유저 Chat 창에 VIP DM 탭 신규 추가"}, {"component": "CRM Team / User Chat UI", "content": "CRM 팀에서 DM 종료 시, 유저 Chat 창에서 VIP DM 삭제 처리"}, {"component": "VIP DM Tab", "content": "읽지 않은 DM이 있는 경우 VIP 탭 우상단에 붉은색 노티와 수치 추가 (최대 99+)"}, {"component": "Lobby & Ingame Chat Icon", "content": "Lobby & Ingame Chat 아이콘 우상단 Chat 노티 수치에 VIP DM 알림 반영"}, {"component": "CRM Chat", "content": "CRM Chat name은 앱 이름으로 진행 (CVS: Club Vegas, CBN: Cash Billionaire, JPM: Jackpot Madness)"}, {"component": "VIP Message", "content": "Image 첨부 기능 추가 (VIP Message Only)"}, {"component": "VIP Message Image", "content": "사진 클릭 시 확대 기능 개발"}, {"component": "Chat UI", "content": "날짜 경계선 UI 추가 (Chat 발생 시점(PDT 기준)의 월, 일, 년, 유저 기기 시간 기준)"}, {"component": "DM Notification", "content": "유저 미 접속 기간 동안 발생한 신규 DM 수치도 노티에 반영"}, {"component": "Admin Maintenance", "content": "Admin Maintenance 메뉴에 VIP Chat 항목 추가"}, {"component": "Admin VIP Chat List", "content": "New Button 클릭 시 신규 VIP Chat 생성"}, {"component": "Admin VIP Chat List", "content": "Last Chat Time, Last Chat Content, Online 유무 (페이지 리프레시 시점 기준), User ID, Username, Unread 유저 Chat 내용 (+n 수치, 붉은색 볼드), Status (ON / Done) 표시"}, {"component": "Admin VIP Chat List", "content": "Unread 수치를 클릭해 채팅 팝업 띄우면 'none'으로 표기"}, {"component": "Admin VIP Chat Search", "content": "User ID 입력 후 Search 버튼 클릭 시, 해당 User ID로 진행된 모든 Chat 항목 리스트 출력"}, {"component": "Admin VIP Chat User Info", "content": "Done으로 이관 시 online / unread 항목 삭제"}, {"component": "Admin VIP Chat Page UI", "content": "Done Chat page는 10개로 1페이지 운영 (CRM 팀 니즈에 따라 변경 가능)"}, {"component": "User DM Screen", "content": "Done 처리 시, 유저가 DM 화면을 보고 있다면 종료 안내 팝업 출력 (DM chat 보고 있을 때만 노출)"}, {"component": "Admin VIP Chat New Creation", "content": "New button 클릭 시 유저 ID 입력 팝업 출력 및 User ID 입력 시 Start Chat 버튼 활성화"}, {"component": "Admin VIP Chat New Creation", "content": "이미 VIP chat 진행 중인 유저는 신규 생성 불가 (중복 안내 팝업 출력)"}, {"component": "Admin VIP Chat Pop-up", "content": "Enter Text 항목으로 Chat 입력 (내용 입력 후, 키보드 Enter로 입력, 100자 제한)"}, {"component": "Admin VIP Chat Pop-up", "content": "Chat 내용은 일시, Username: , 내용 순으로 출력"}, {"component": "Admin VIP Chat Pop-up", "content": "스크롤 조작 지원"}, {"component": "Admin VIP Chat Pop-up", "content": "팝업 이외 부분 클릭 시 Popup 종료"}, {"component": "Admin VIP Chat Pop-up", "content": "User name 출력"}, {"component": "Admin VIP Chat Pop-up", "content": "+버튼 (image 업로드)"}, {"component": "Admin VIP Chat Pop-up", "content": "Emoticon 기능 (CVS Chat 에 있는 Emoticon과 동일)"}, {"component": "Admin VIP Chat Pop-up", "content": "Status 변경 Dropdown (ON, Done 둘 중 1개 상태로 세팅 가능) 및 Save 버튼 클릭 시 변경 저장"}, {"component": "Admin VIP Chat Pop-up", "content": "Status를 Done으로 변경 시 해당 User의 chat UI에서 VIP tap 삭제 처리 (이후 On으로 변경 불가)"}, {"component": "Admin VIP Chat Pop-up", "content": "유저가 보낸 이미지 Web상으로 볼 수 있는 기능"}, {"component": "Admin VIP Chat Done Status", "content": "Done으로 변경 시에도 로그 확인 가능"}, {"component": "Admin Authority", "content": "Master 권한을 가진 유저가 특정 User에게 VIP Chat 영역을 수정할 수 있는 권한 부여"}, {"component": "Admin VIP Chat", "content": "한 번 Done 처리된 Chat은 On으로 전환 불가하며, 재 VIP chat을 진행하고 싶다면 New 버튼 클릭하여 신규로 VIP chat 생성"}], "subtasks": [{"key": "CVS-9755", "summary": "서버", "status": "Done"}, {"key": "CVS-9756", "summary": "클라", "status": "Done"}, {"key": "CVS-9757", "summary": "TA", "status": "Done"}, {"key": "CVS-9983", "summary": "클라 PR", "status": "Done"}, {"key": "CVS-10055", "summary": "Windows 유저 선택 이미지 사이즈 문제", "status": "Done"}, {"key": "CVS-10056", "summary": "Canvas 유저 선택 이미지 사이즈 문제", "status": "Done"}, {"key": "CVS-10057", "summary": "GooglePC 유저 선택 이미지 사이즈 문제", "status": "Done"}, {"key": "CVS-10063", "summary": "[Re][Bug] 유저가 클라를 종료한 상태에서 DM을 받는 경우 로비 하단 chat / DM 탭 우측 상단에 red dot 수치 표기가 나오지 않는 문제", "status": "Done"}, {"key": "CVS-10064", "summary": "[Bug] 유저의 DM 채팅창에서 운영쪽에서 받은 채팅 내용 길게 클릭 시, report가 뜨는 현상", "status": "Done"}, {"key": "CVS-10065", "summary": "[Bug] 유저가 DM이 활성화 된 상태로 슬롯에서 오토 스핀 진행 시, admin에서 Done처리를 하는 경우 유저의 DM창이 비활성화 처리 되지 않는 문제 ", "status": "Done"}, {"key": "CVS-10066", "summary": "[Bug] 유저가 슬롯 안에서 DM을 받는 경우 하단 Chat에 red dot 표기가 되지 않는 문제", "status": "Done"}, {"key": "CVS-10067", "summary": "Amazon 유저 선택 이미지 사이즈 문제", "status": "Done"}, {"key": "CVS-10068", "summary": "[Bug] CBN/JPM admin Chat 화면에 'Club Vegas'로 뜨는 현상 개선", "status": "Done"}, {"key": "CVS-10069", "summary": "[Bug] admin Chat에서 보내는 첫 이모지 정렬이 맞지 않는 현상", "status": "Done"}, {"key": "CVS-10070", "summary": "[Bug] 채팅 Done처리 시, 유저가 클럽/데일리스핀/인박스/에픽앨범 안에 있는 경우 관련 종료 안내 팝업이 노출되지 않는 문제", "status": "Done"}, {"key": "CVS-10177", "summary": "[Polish] Admin > VIP chat 화면 새로고침 후 임의의 chat 화면 클릭 시 스크롤이 최상단에 위치하는 현상", "status": "Done"}, {"key": "CVS-10204", "summary": "[Bug] admin에서 유저에게 보낸 dm내용을 디바이스(ios)에서 확인했으나 동일 계정으로 캔버스 접속해서 확인 시, red dot이 그대로 노출되는 현상", "status": "Done"}], "incomplete_areas": [{"component": "Admin VIP Chat List", "content": "Online 유무 표시: 유저 미접속 체크 시간 단축 방안 고려 필요"}, {"component": "Admin VIP Chat Pop-up", "content": "Emoticon 기능: 개발 내용이 클 경우 다음 개선으로 이관 고려"}, {"component": "Admin VIP Chat Pop-up", "content": "+버튼 (image 업로드): 개발 가능 여부 체크 필요"}, {"component": "Admin VIP Chat Pop-up", "content": "유저가 보낸 이미지 Web상으로 볼 수 있는 기능: 개발 가능 여부 체크 필요"}, {"component": "User Profile (VIP Chat)", "content": "유저 프로필 이미지: 아직 정해지지 않았으며, 정해지면 공유 예정"}, {"component": "User DM Tab Close", "content": "DM 탭 닫기 방식에 대한 유저 반응 고려 및 운영적 대응 방안 필요 (보수적인 것을 의도)"}, {"component": "User DM Chat UI", "content": "DM Chat에서 왼쪽 온라인 부분 노출 여부 재검토 (보이지 않아도 상관 없음)"}, {"component": "Admin Authority / User Chat Alert", "content": "유저가 새로 메시지 보낼 경우 운영팀에서 확인할 수 있는 알람 처리 방안 및 Admin 로그 권한 고민 필요 (기획서 내용 추가 예정)"}, {"component": "Admin Authority", "content": "Admin 권한 단계 세분화 및 CS 권한 부여 시 상위 권한이 부여되는 상황에 대한 고민 필요"}, {"component": "User DM Notification", "content": "DM 첫 수신 시 알람 (빨간 딱지) 인지 강화 방안 고려 필요 (일단 운영해보고 유저 응답률 확인 후 빌드업 예정)"}], "ui_ux_changes": [{"component": "User Selection Image", "content": "Windows 유저 선택 이미지 사이즈 문제 개선"}, {"component": "User Selection Image", "content": "Canvas 유저 선택 이미지 사이즈 문제 개선"}, {"component": "User Selection Image", "content": "GooglePC 유저 선택 이미지 사이즈 문제 개선"}, {"component": "Lobby Chat / DM Tab", "content": "클라 종료 후 DM 수신 시, 로비 하단 Chat/DM 탭 우측 상단 red dot 수치 미표기 문제 개선"}, {"component": "User DM Chat Window", "content": "유저의 DM 채팅창에서 운영팀 DM 내용 길게 클릭 시 report가 뜨는 현상 제거"}, {"component": "User DM Chat Window", "content": "DM 활성화 상태에서 오토 스핀 중 Admin Done 처리 시, 유저 DM창 비활성화 미처리 문제 개선"}, {"component": "Ingame Chat Red Dot", "content": "슬롯 플레이 중 DM 수신 시, 하단 Chat red dot 미표기 문제 개선"}, {"component": "User Selection Image", "content": "Amazon 유저 선택 이미지 사이즈 문제 개선"}, {"component": "Admin Chat Screen", "content": "CBN/JPM Admin Chat 화면에 'Club Vegas' 표기 현상 개선 (앱 이름으로 표기)"}, {"component": "Admin Chat Emoji", "content": "Admin Chat에서 보내는 첫 이모지 정렬 문제 개선"}, {"component": "Chat Done Popup", "content": "채팅 Done 처리 시, 유저가 특정 인게임 화면(클럽/데일리스핀/인박스/에픽앨범) 내 종료 안내 팝업 미노출 문제 개선"}, {"component": "Admin VIP Chat Screen", "content": "Admin > VIP chat 화면 새로고침 후 임의 Chat 화면 클릭 시 스크롤 최상단 위치 현상 개선"}, {"component": "DM Red Dot Sync", "content": "Admin에서 유저에게 보낸 DM 내용 확인 후 디바이스/캔버스 간 red dot 동기화 미흡 문제 개선"}], "edge_cases": [{"scenario": "VIP Chat 신규 생성 시", "action": "이미 VIP Chat 진행 중인 유저는 신규 생성이 불가하며, 중복 안내 팝업이 출력되어야 한다."}, {"scenario": "VIP Chat 상태 변경", "action": "한 번 Done 처리된 Chat은 On 상태로 전환 불가하다."}, {"scenario": "Done 처리된 유저와 재 VIP Chat 진행", "action": "New 버튼을 클릭하여 신규로 VIP Chat을 생성해야 한다."}, {"scenario": "유저 DM 채팅창에서 운영팀 채팅 리포트", "action": "운영팀 채팅 내용(Club Vegas)은 리포트 불가하도록 개발되어야 한다."}]}, "ac_items": [{"id": "AC001", "category": "L", "category_name": "로직", "content": "CRM 팀에서 특정 유저에게 DM을 발송할 수 있어야 한다.", "source": "[슬라이드 2]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "CRM 팀이 DM을 발송하는 '어떻게'에 대한 세부 사항은 후속 AC나 별도 화면 정의에서 다뤄질 것이라 가정."}, {"id": "AC002", "category": "U", "category_name": "UI/UX", "content": "유저 Chat 창에 VIP DM 탭이 신규로 추가되어야 한다.", "source": "[슬라이드 2]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "탭의 위치나 디자인은 UI/UX 가이드라인을 따를 것이라 가정."}, {"id": "AC003", "category": "L", "category_name": "로직", "content": "CRM 팀에서 DM 종료 시, 유저 Chat 창에서 VIP DM 탭이 삭제되어야 한다.", "source": "[슬라이드 2]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC016, AC030, AC034와 연결됨.", "assumption": "'DM 종료'는 CRM 팀이 어떤 액션을 취했을 때를 의미."}, {"id": "AC004", "category": "U", "category_name": "UI/UX", "content": "읽지 않은 DM이 있는 경우, VIP 탭 우상단에 붉은색 노티와 수치(최대 99+)가 표시되어야 한다.", "source": "[슬라이드 4]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "'읽지 않은 DM'의 기준 (예: 탭 진입 시 모두 읽음 처리, 스크롤 최하단 도달 시 읽음 처리 등)은 별도 논의가 필요할 수 있으나, 표시 자체는 명확."}, {"id": "AC005", "category": "U", "category_name": "UI/UX", "content": "Lobby & Ingame Chat 아이콘 우상단 Chat 노티 수치에 VIP DM 알림이 반영되어야 한다.", "source": "[슬라이드 4]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC004와 연결됨.", "assumption": "기존 Chat 노티 수치에 VIP DM 미확인 건수가 합산되는 방식이라 가정."}, {"id": "AC006", "category": "S", "category_name": "시스템/서버", "content": "CRM Chat name은 앱 이름으로 표시되어야 한다 (예: Club Vegas, Cash Billionaire, Jackpot Madness).", "source": "[슬라이드 4]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC038과 연결됨.", "assumption": "CRM Chat name이 UI에 표시될 때의 요구사항이라 가정."}, {"id": "AC007", "category": "U", "category_name": "UI/UX", "content": "VIP Message에 이미지를 첨부할 수 있는 기능이 제공되어야 한다.", "source": "[슬라이드 4]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC027과 연결됨.", "assumption": "유저가 Admin에게 이미지를 첨부하는 것도 포함할 것이라 가정 (AC031에서 유저가 보낸 이미지 언급)."}, {"id": "AC008", "category": "U", "category_name": "UI/UX", "content": "첨부된 이미지를 클릭 시 확대 기능이 제공되어야 한다.", "source": "[슬라이드 4]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "유저와 Admin 모두에게 적용될 것이라 가정."}, {"id": "AC009", "category": "U", "category_name": "UI/UX", "content": "Chat UI에 날짜 경계선이 월, 일, 년 (PDT 기준) 형식으로 표시되어야 하며, 유저 기기 시간을 기준으로 해야 한다.", "source": "[슬라이드 4]", "verdict": "⚠️", "verdict_label": "모호", "evidence": "", "assumption": "날짜 경계선 자체는 PDT 기준이나, 표시되는 시간은 유저 기기 시간을 기준으로 한다는 것인지, 아니면 날짜 경계선의 날짜 자체를 유저 기기 시간 기준으로 한다는 것인지 불분명. 'PDT 기준'과 '유저 기기 시간 기준'의 명확한 정의 또는 적용 범위 확인 필요."}, {"id": "AC010", "category": "S", "category_name": "시스템/서버", "content": "유저 미 접속 기간 동안 발생한 신규 DM 수치가 노티에 반영되어야 한다.", "source": "[슬라이드 4]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC004, AC005와 연결됨.", "assumption": "서버에서 미접속 기간 동안의 DM을 관리하고, 접속 시 클라이언트에 해당 정보를 전달한다는 가정."}, {"id": "AC011", "category": "S", "category_name": "시스템/서버", "content": "Admin Maintenance 메뉴에 VIP Chat 항목이 추가되어야 한다.", "source": "[슬라이드 5]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "Admin 페이지에 VIP Chat 관리 메뉴가 추가된다는 의미."}, {"id": "AC012", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 목록에서 'New Button' 클릭 시 신규 VIP Chat을 생성할 수 있어야 한다.", "source": "[슬라이드 7]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC019와 연결됨.", "assumption": ""}, {"id": "AC013", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 목록에는 Last Chat Time, Last Chat Content, Online 유무, User ID, Username, Unread 유저 Chat 내용 (+n 수치), Status (ON/Done)가 표시되어야 한다.", "source": "[슬라이드 7]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": ""}, {"id": "AC014", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 목록에서 Unread 수치를 클릭하면 채팅 팝업이 뜨고 수치는 'none'으로 변경되어야 한다.", "source": "[슬라이드 7]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "'none'은 0을 의미하거나, 아예 표시되지 않도록 한다는 의미로 해석. 채팅 팝업이 뜨는 순간 해당 채팅의 Unread 상태가 해제된다는 로직."}, {"id": "AC015", "category": "L", "category_name": "로직", "content": "Admin VIP Chat 검색 시 User ID를 입력하여 해당 유저의 모든 Chat 항목 리스트를 출력할 수 있어야 한다.", "source": "[슬라이드 8]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC032와 연결될 수 있음.", "assumption": "'모든 Chat 항목 리스트'는 현재 진행 중이거나 과거에 완료된 VIP Chat 모두를 의미."}, {"id": "AC016", "category": "L", "category_name": "로직", "content": "Admin에서 Chat을 'Done'으로 이관 시, 해당 유저 정보창에서 Online 및 Unread 항목이 삭제되어야 한다.", "source": "[슬라이드 8]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC003, AC030과 연결됨.", "assumption": "'해당 유저 정보창'은 AC013의 Admin VIP Chat 목록을 지칭하는 것으로 가정. 삭제는 표시되지 않는다는 의미."}, {"id": "AC017", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat의 Done Chat 페이지는 10개로 1페이지로 운영되어야 한다 (CRM 팀 니즈에 따라 변경 가능).", "source": "[슬라이드 8]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "10개 '씩' 1페이지로 운영된다는 의미로 해석 (1페이지 당 10개 항목). 'CRM 팀 니즈에 따라 변경 가능'은 AC로서는 명확하나, 나중에 변경될 수 있는 여지를 둠."}, {"id": "AC018", "category": "U", "category_name": "UI/UX", "content": "유저가 DM 화면을 보고 있을 때, Admin에서 Done 처리 시 종료 안내 팝업이 출력되어야 한다.", "source": "[슬IDE 9]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC040과 연결됨.", "assumption": "'종료 안내 팝업'의 문구 및 디자인은 UI/UX에 따를 것이라 가정."}, {"id": "AC019", "category": "U", "category_name": "UI/UX", "content": "Admin에서 'New' 버튼 클릭 시 유저 ID 입력 팝업이 출력되고, User ID 입력 시 'Start Chat' 버튼이 활성화되어야 한다.", "source": "[슬라이드 10]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC012와 연결됨.", "assumption": "유효한 User ID를 입력했을 때만 'Start Chat' 버튼이 활성화되는 것으로 가정."}, {"id": "AC020", "category": "E", "category_name": "예외", "content": "이미 VIP Chat 진행 중인 유저는 신규 생성이 불가하며, 중복 안내 팝업이 출력되어야 한다.", "source": "[슬라이드 10]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "'진행 중'의 정의 (Status ON 상태 등)가 명확하다고 가정."}, {"id": "AC021", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업에서 'Enter Text' 항목에 채팅을 입력하고 키보드 Enter로 전송할 수 있어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": ""}, {"id": "AC022", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업에서 채팅 내용은 '일시, Username: , 내용' 순으로 출력되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": ""}, {"id": "AC023", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업에서 스크롤 조작이 지원되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": ""}, {"id": "AC024", "category": "L", "category_name": "로직", "content": "Admin VIP Chat 팝업에서 채팅 내용의 글자 수는 100자로 제한되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "유저가 보내는 메시지에도 동일한 제한이 적용되는지 명시되어 있지 않으나, 보통 양방향 채팅은 동일한 정책을 따르는 경우가 많음."}, {"id": "AC025", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업 이외의 부분을 클릭 시 팝업이 종료되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "Esc 키나 명시적인 닫기 버튼으로도 닫히는 일반적인 팝업 동작을 가정."}, {"id": "AC026", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업에 유저 이름이 출력되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": ""}, {"id": "AC027", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업에 이미지 업로드 '+버튼'이 제공되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC007과 연결됨.", "assumption": ""}, {"id": "AC028", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업에 CVS Chat과 동일한 Emoticon 기능이 제공되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "'CVS Chat'의 이모티콘 기능이 명확히 정의되어 있고, 해당 기능을 그대로 VIP Chat에 적용한다는 가정."}, {"id": "AC029", "category": "L", "category_name": "로직", "content": "Admin VIP Chat 팝업에서 Status 변경 Dropdown (ON/Done)을 통해 상태를 세팅하고 'Save' 버튼 클릭 시 변경이 저장되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": ""}, {"id": "AC030", "category": "L", "category_name": "로직", "content": "Admin VIP Chat 팝업에서 Status를 'Done'으로 변경 시 해당 유저의 chat UI에서 VIP 탭이 삭제 처리되어야 하며, 이후 'On'으로 변경 불가하다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC003, AC016, AC034와 연결됨.", "assumption": "'삭제 처리'는 AC003과 동일하게 유저 Chat 창에서 VIP DM 탭이 보이지 않게 되는 것을 의미."}, {"id": "AC031", "category": "U", "category_name": "UI/UX", "content": "Admin VIP Chat 팝업에서 유저가 보낸 이미지를 Web상으로 볼 수 있는 기능이 제공되어야 한다.", "source": "[슬라이드 11]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC007에서 유저도 이미지 첨부가 가능할 것이라는 가정을 뒷받침함.", "assumption": "'Web상'으로 본다는 것이 Admin 웹 페이지 내에서 이미지를 바로 볼 수 있다는 의미로 해석."}, {"id": "AC032", "category": "L", "category_name": "로직", "content": "VIP Chat이 'Done'으로 변경된 이후에도 Admin에서 로그 확인이 가능해야 한다.", "source": "[슬라이드 12]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC015와 연결될 수 있음.", "assumption": "'로그 확인'은 Chat 내용 기록을 의미."}, {"id": "AC033", "category": "L", "category_name": "로직", "content": "Master 권한을 가진 유저가 특정 User에게 VIP Chat 영역을 수정할 수 있는 권한을 부여할 수 있어야 한다.", "source": "[슬라이드 13]", "verdict": "⚠️", "verdict_label": "모호", "evidence": "", "assumption": "Master 권한을 가진 유저가 '다른 Admin'에게 VIP Chat을 관리할 수 있는 권한을 부여한다는 것인지, 아니면 '일반 유저'에게 VIP Chat UI나 내용을 수정할 수 있는 권한을 부여한다는 것인지 불분명. 일반적인 맥락에서는 전자에 가깝겠지만, 명확화가 필요."}, {"id": "AC034", "category": "L", "category_name": "로직", "content": "한 번 Done 처리된 Chat은 On으로 전환이 불가하며, 재 VIP Chat을 진행하려면 New 버튼을 클릭하여 신규 VIP Chat을 생성해야 한다.", "source": "[슬라이드 14]", "verdict": "✅", "verdict_label": "명확", "evidence": "AC030의 'On으로 변경 불가'를 보강.", "assumption": ""}, {"id": "AC035", "category": "U", "category_name": "UI/UX", "content": "DM 탭 내에서 CRM팀 채팅 내용(Club Vegas)은 리포트 불가하도록 개발되어야 한다.", "source": "Confluence: 23.09.20_Product&QA Scale up Review", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": "'리포트 불가'는 유저가 CRM 팀의 메시지를 신고하거나 이의를 제기하는 기능이 없어야 한다는 의미로 해석."}, {"id": "AC036", "category": "S", "category_name": "시스템/서버", "content": "클라이언트의 chat_type은 'vip_dm'으로 전송되어야 한다.", "source": "Confluence: VIP Chat 추가", "verdict": "✅", "verdict_label": "명확", "evidence": "", "assumption": ""}, {"id": "AC037", "category": "S", "category_name": "시스템/서버", "content": "클라이언트 채팅 메시지 유형은 'message', 'emoji', 'image'를 포함해야 한다.", "source": "Confluence: VIP Chat 추가", "verdict": "✅", "verdict_label": "명확", "evidence": "AC007, AC028과 연결됨.", "assumption": "이 유형들이 VIP DM에만 해당되는 것인지, 일반 채팅과 동일한지 등 세부적인 범위는 별도 문서 확인이 필요할 수 있으나, AC 자체는 명확."}, {"id": "AC038", "category": "S", "category_name": "시스템/서버", "content": "서버 시스템 채팅의 이름이 'vip_dm'일 경우 해당 컬럼에 앱 이름(예: Club Vegas, Cash Billionaire, Jackpot Madness)을 넣어야 한다.", "source": "Confluence: VIP Chat 추가", "verdict": "✅", "verdict_label": "명확", "evidence": "AC006과 연결됨.", "assumption": ""}, {"id": "AC039", "category": "S", "category_name": "시스템/서버", "content": "서버 시스템 채팅 메시지 유형은 'VIP_DM_MESSAGE', 'VIP_DM_EMOJI', 'VIP_DM_IMAGE'를 포함해야 한다.", "source": "Confluence: VIP Chat 추가", "verdict": "✅", "verdict_label": "명확", "evidence": "AC037과 연결됨.", "assumption": ""}, {"id": "AC040", "category": "U", "category_name": "UI/UX", "content": "클라이언트 팝업 중 'VIP Chat End Popup'이 존재해야 한다.", "source": "Confluence: VIP Chat 추가", "verdict": "✅", "verdict_label": "명확", "evidence": "AC018과 연결됨.", "assumption": ""}], "developer": {"impact_scope": [{"module": "CRM Admin Panel", "change_type": "신규/수정", "is_risky": true, "detail": "VIP Chat 관리, 유저 검색, 메시지 전송 (텍스트, 이미지), 상태 관리, 권한 부여 등 신규 UI 및 로직 추가, 기존 Admin 시스템 연동"}, {"module": "User Chat UI", "change_type": "신규/수정", "is_risky": true, "detail": "VIP DM 탭, DM 메시지/이미지 표시, 알림, 날짜 경계선, DM 종료 처리 팝업 등 신규 UI 및 로직 추가. 다양한 플랫폼(Windows, Canvas, GooglePC, Amazon)에서 UI/UX 호환성 유지."}, {"module": "Backend Chat/Messaging Service", "change_type": "신규/수정", "is_risky": true, "detail": "VIP DM 메시지 송수신, 이미지 저장/관리, 알림 로직, 유저 실시간 상태 관리, Admin 기능 지원 API 개발. 기존 채팅 시스템에 새로운 chat_type('vip_dm') 및 메시지 유형('message', 'emoji', 'image') 추가."}, {"module": "Notification System", "change_type": "수정", "is_risky": true, "detail": "Lobby & Ingame Chat 아이콘 노티, VIP 탭 노티, 미접속 기간 DM 알림 반영 로직 개선 및 크로스 플랫폼 동기화. 알림 인지 강화 방안 고려."}, {"module": "Image Storage/CDN", "change_type": "신규", "is_risky": true, "detail": "VIP Message 이미지 업로드 및 저장 시스템, CDN 연동, 보안 정책 수립. 대용량 이미지 처리 및 비용 효율성 고려."}, {"module": "Admin Authority System", "change_type": "신규/수정", "is_risky": true, "detail": "VIP Chat 권한 부여/관리 기능, 권한 단계 세분화 로직 추가. Master 권한 유저의 특정 유저 VIP Chat 영역 수정 권한 부여."}, {"module": "Database", "change_type": "신규/수정", "is_risky": true, "detail": "VIP Chat 메시지, 상태, 이미지 메타데이터, 유저 상태 정보 등 신규 테이블 및 인덱스 추가. 기존 스키마에 chat_type, message_type 필드 확장."}, {"module": "Monitoring/Logging", "change_type": "신규/수정", "is_risky": true, "detail": "VIP Chat 관련 이벤트, 오류, 운영 활동 상세 로깅 강화 및 모니터링 시스템 연동. Done 처리 이후에도 로그 확인 가능 기능 제공."}], "impl_risks": [{"feature": "Admin VIP Chat - Online 유무 표시 및 DM 알람", "complexity": "High", "risk": "유저의 'Online' 상태를 실시간으로 정확하게 표시하고 '미접속 기간 DM 수치'를 반영하는 것은 서버 부하 및 비용 증가를 야기할 수 있습니다. 운영팀에 유저가 새로 메시지를 보낼 경우 실시간 알람을 제공하는 기능은 시스템의 즉각적인 반응성 및 안정성을 위한 기술적 난이도가 높습니다. (기획서 내용 추가 예정 사항)"}, {"feature": "VIP Message Image 첨부 및 웹상 이미지 확인", "complexity": "High", "risk": "이미지 업로드/저장/전송 시스템 구축은 보안(파일 유효성 검증, 접근 제어), 성능(로딩 최적화), 대용량 트래픽 처리, 저장 비용 측면에서 복잡도가 높습니다. 유저가 보낸 이미지에 대한 콘텐츠 필터링, 정책 수립 및 구현이 필수적이며, 개발 가능 여부 재확인이 필요합니다."}, {"feature": "Admin 권한 관리 단계 세분화", "complexity": "High", "risk": "Master 권한을 가진 유저가 특정 User에게 VIP Chat 영역 수정 권한을 부여하는 기능 및 CS 권한 부여 시 상위 권한이 부여되는 상황에 대한 고민은 기존 권한 시스템과의 통합 및 정책 수립, 구현 복잡도가 높습니다. 잘못 구현 시 보안 취약점 발생 및 운영상 혼란을 초래할 수 있습니다."}, {"feature": "Emoticon 기능 통합", "complexity": "Medium", "risk": "Admin VIP Chat 팝업에 기존 CVS Chat과 동일한 Emoticon 기능을 통합하는 것은 기존 시스템과의 완벽한 호환성을 요구합니다. 플랫폼별 렌더링 문제나 새로운 이모티콘 시스템 개발이 필요할 경우 스코프 크립으로 이어질 수 있습니다."}, {"feature": "DM 탭 닫기 방식 및 종료 안내 팝업 UX", "complexity": "Medium", "risk": "Admin에서 Chat을 'Done' 처리 시 유저 DM 탭 삭제 및 종료 안내 팝업 노출 방식은 유저 경험(UX)에 민감하게 작용할 수 있습니다. (CVS-10065, CVS-10070 등 관련 버그 이력 있음) 보수적인 접근을 의도하였으나, 유저 혼란을 최소화하기 위한 신중한 설계 및 테스트가 필요합니다."}, {"feature": "크로스 플랫폼 UI/UX 일관성", "complexity": "Medium", "risk": "이전에 Windows, Canvas, GooglePC, Amazon 등 다양한 플랫폼에서 이미지 사이즈 및 UI 관련 버그(CVS-10055, CVS-10056, CVS-10057, CVS-10067)가 발생하고 해결된 이력이 있습니다. 새로운 VIP Chat 기능(특히 이미지 첨부, 알림) 구현 시 플랫폼별 UI/UX 호환성 문제가 재발할 가능성이 높으므로, 철저한 크로스 플랫폼 테스트가 필수적입니다."}, {"feature": "DM Red Dot Sync 문제", "complexity": "Low", "risk": "관리자에서 보낸 DM을 디바이스에서 확인했음에도 캔버스에서 Red Dot이 그대로 노출되는 현상(CVS-10204)은 해결되었으나, 새로운 알림 로직과 통합 시 유사한 동기화 문제가 다시 발생할 가능성이 있습니다. 유저의 접속 환경(모바일, 웹, PC 클라이언트) 및 상태(온라인, 오프라인)에 따른 알림 동기화 로직의 견고함이 요구됩니다."}], "impl_order": ["1. Backend Chat Core & Database Schema 확장 (VIP DM 전용 메시지, 상태, 유저 상태 관리 API 및 DB 설계)", "2. 이미지 스토리지/CDN 연동 및 보안 정책 수립 (VIP Message 이미지 업로드/저장/전달 시스템 구축)", "3. Admin Panel 핵심 기능 개발 (VIP Chat 목록 조회, 신규 Chat 생성, 메시지 전송(텍스트), 상태 변경(ON/Done))", "4. Client User Chat UI 핵심 기능 개발 (VIP DM 탭 추가, 메시지 표시(텍스트), 알림(노티 및 수치), 날짜 경계선)", "5. Notification System 연동 및 동기화 로직 구현 (Lobby & Ingame Chat 아이콘, VIP 탭 알림)", "6. 이미지 표시 기능 구현 (유저/어드민 UI에서 VIP Message 이미지 표시 및 확대)", "7. Admin 권한 관리 및 유저 메시지 알림 시스템 구현", "8. Emoticon 기능 통합 (Admin VIP Chat 팝업 내 이모티콘)", "9. Edge Case 처리 및 UX 개선 (DM 종료 팝업, 중복 Chat 생성 방지, 스크롤 최상단 위치 등)", "10. 전반적인 기능/부하/보안 테스트 및 QA"], "tech_notes": ["**실시간 통신 아키텍처**: Admin의 유저 'Online' 유무 표시, 운영팀의 실시간 알람, 유저의 DM 종료 팝업 처리 등 실시간성이 요구되는 기능에는 WebSocket 기반의 양방향 통신 도입을 적극적으로 고려하여 서버 부하를 줄이고 유저 경험을 향상시켜야 합니다. 기존 Chat 시스템에 WebSocket이 이미 적용되어 있다면 확장 가능성을 검토합니다.", "**이미지 처리 및 보안 강화**: 이미지 업로드 시 파일 유효성 검증(확장자, MIME 타입, 크기), 바이러스 스캔, 콘텐츠 필터링, 저장 공간 할당 정책 등 강력한 보안 정책 및 시스템 구축이 필수적입니다. 또한, 대용량 이미지 로딩 성능 최적화를 위해 CDN 활용 및 이미지 압축/리사이징 전략이 필요합니다.", "**권한 관리 모델 설계**: Admin 권한 단계 세분화는 보안과 운영 효율성을 위해 중요합니다. 향후 확장성을 고려한 유연한 권한 관리 모델(RBAC 등) 설계 및 기존 시스템과의 유기적인 통합 방안에 대한 심도 깊은 논의가 필요합니다.", "**크로스 플랫폼 테스트**: VIP Chat의 이미지 렌더링, 알림 표기, 이모티콘 등 UI 요소들이 Windows, Canvas, GooglePC, Amazon 등 다양한 플랫폼 환경에서 일관성 있고 정상적으로 동작하는지 면밀한 테스트가 요구됩니다. (과거 버그 이력을 통해 중요성 재강조)", "**데이터 스키마 및 인덱싱 최적화**: Chat 메시지, 이미지 메타데이터, 유저 상태, Admin 활동 로그 등 대량 데이터가 발생할 수 있으므로, 확장성, 성능, 가용성을 고려한 데이터베이스 스키마 설계 및 인덱싱 전략이 중요합니다. 특히, 채팅 기록 검색 및 실시간 상태 업데이트 성능을 면밀히 검토해야 합니다.", "**운영 모니터링 및 상세 로깅**: VIP Chat은 핵심 유저 케어 기능이므로, 시스템 안정성, 성능 저하, 오류 발생 등을 실시간으로 감지하고 대응할 수 있는 모니터링 및 상세 로깅 시스템이 필수적입니다. 'Done' 처리 후 로그 확인 기능 구현 시 데이터 보존 및 조회 효율성을 고려해야 합니다.", "**UX 일관성 및 유저 반응 고려**: 'DM 탭 닫기 방식', 'DM 첫 수신 시 알람 인지 강화' 등 유저 경험에 직접적인 영향을 미치는 기능들은 기존 채팅 시스템과의 일관성을 유지하면서도 VIP Chat의 특수성을 살릴 수 있도록 신중한 설계와 필요시 A/B 테스트를 통해 유저 반응을 확인해야 합니다."]}, "meeting": {"date": "2023-10-27", "participants": ["기획 에이전트", "개발 에이전트", "QA 에이전트"], "rounds": [{"round": 1, "agent": "기획 에이전트", "agent_type": "planner", "content": "안녕하세요, VIP Chat 기능 기획에 대해 현재까지 정리된 내용을 공유드립니다. 핵심은 VIP 고객과 상담사가 실시간으로 소통하는 채널을 제공하는 것입니다. 현재까지는 텍스트 채팅을 기본으로 고려하고 있으며, VIP 식별 및 채팅방 생성, 기본적인 메시지 송수신 기능에 대한 와이어프레임과 플로우를 정리 중입니다. 다만, 이미지 첨부, 이모티콘 통합, Admin 기능 상세 등은 아직 구체화되지 않았습니다. 현재까지의 내용을 기반으로 개발 및 QA에서 예상되는 리스크나 추가 논의가 필요한 부분이 있다면 알려주시면 감사하겠습니다."}, {"round": 1, "agent": "개발 에이전트", "agent_type": "developer", "content": "기획안 잘 들었습니다. 현재까지의 내용을 보면, 저희가 파악한 개발 리스크 중 'Admin VIP Chat - Online 유무 표시 및 DM 알람', 'VIP Message Image 첨부 및 웹상 이미지 확인', 'Admin 권한 관리 단계 세분화'는 기획의 상세 정도와 상관없이 구현 복잡도가 높을 것으로 예상됩니다. 특히 Admin 온라인 유무 표시는 시스템 연동 및 실시간 처리 부분에서, 이미지 첨부는 스토리지 및 뷰어 처리에서 각각 높은 리스크를 가집니다. Admin 권한 세분화는 기획이 확정되어야 정확한 스펙을 잡을 수 있습니다. 현재 미완성 상태이다 보니, 언급되지 않은 부분들에서 추가 리스크가 발생할 여지도 있습니다. 이미지 첨부나 이모티콘 기능이 포함될 경우, 기존 채팅 시스템과의 연동 방안도 고려해야 합니다."}, {"round": 1, "agent": "QA 에이전트", "agent_type": "qa", "content": "기획과 개발에서 말씀해주신 내용 잘 파악했습니다. 현재 기획안이 초기 단계라 QA 관점에서 직접적인 고위험 요소는 아직 파악되지 않았습니다. 하지만 개발 리스크에서 언급된 'Admin VIP Chat - Online 유무 표시 및 DM 알람', 'VIP Message Image 첨부 및 웹상 이미지 확인' 등은 기능적, 비기능적 테스트 관점에서 고려할 부분이 많을 것 같습니다. 특히 실시간 알람이나 이미지 처리 부분은 크로스 브라우징, 디바이스 호환성 테스트가 중요해질 것으로 보입니다. 'Admin 권한 관리 단계 세분화'는 권한별 접근 제어 및 오작동 여부를 꼼꼼히 테스트해야 할 것입니다. UX/UI 일관성 부분도 초기부터 고려되어야 추후 리워크를 줄일 수 있습니다."}, {"round": 2, "agent": "기획 에이전트", "agent_type": "planner", "content": "개발 및 QA 의견 감사합니다. 개발 리스크가 높은 부분들을 인지하고 있으며, 현재 미완성인 부분들을 우선적으로 보완하겠습니다. 특히 'Admin VIP Chat - Online 유무 표시 및 DM 알람'의 경우, Admin 페이지에서 VIP의 온라인 상태를 실시간으로 확인하고 새 DM 수신 시 알림을 주는 것이 핵심 요구사항입니다. 이미지 첨부 기능은 MVP 단계에서는 제외하거나 텍스트 기반 링크 첨부로 대체하는 방안을 고려해볼 수 있을까요? Admin 권한은 초기에는 VIP Chat 관리자 권한만 설정하고, 추후 단계적으로 세분화하는 방향으로 계획을 수정해보겠습니다. UX/UI 일관성은 초기 기획 단계부터 크로스 플랫폼 가이드를 준수하도록 하겠습니다."}, {"round": 2, "agent": "개발 에이전트", "agent_type": "developer", "content": "기획팀의 빠른 피드백 감사합니다. 'Admin 온라인 유무 표시 및 DM 알람'은 말씀하신대로 핵심 기능이니, 해당 부분에 대한 기술 스펙을 먼저 확정하고 POC를 진행하는 것이 좋겠습니다. 이미지 첨부 기능은 MVP에서 제외하거나 텍스트 링크로 대체하는 방안은 개발 공수를 크게 줄일 수 있어 긍정적입니다. 다만, 추후 이미지 기능이 추가될 경우를 대비하여 아키텍처 설계 시 확장성을 염두에 두겠습니다. Admin 권한의 단계적 세분화도 합리적인 접근입니다. 초기에는 핵심 기능 구현에 집중하고, 해당 리스크들에 대한 상세 기획이 더 구체화되면 기술적 검토를 다시 진행하겠습니다."}, {"round": 2, "agent": "QA 에이전트", "agent_type": "qa", "content": "기획 및 개발팀의 논의 내용을 들으니 방향성이 명확해지는 것 같습니다. 'Admin 온라인 유무 표시 및 DM 알람' 기능이 MVP에 포함된다면, 이 기능에 대한 명확한 요구사항과 처리 흐름을 정의하는 것이 QA 관점에서 중요합니다. 알람의 종류(팝업, 사운드 등), 반복 주기, 오작동 시 복구 시나리오 등을 상세히 정리해주시면 테스트 계획 수립에 큰 도움이 됩니다. 이미지 첨부 기능이 MVP에서 제외된다면, 해당 부분에 대한 테스트 범위는 줄어들지만, 추후 추가될 가능성을 염두에 두고 미리 테스트 케이스 구상을 해두겠습니다. Admin 권한의 경우, 초기 버전에서 최소한의 권한 분리가 명확히 작동하는지 집중적으로 검증하겠습니다."}], "consensus": [{"priority": "P0", "action": "Admin VIP Chat의 VIP 온라인 상태 표시 및 DM 알람 기능에 대한 상세 기획을 최우선으로 완료하고, 개발팀은 해당 기능의 기술 스펙 검토 및 POC를 진행한다."}, {"priority": "P1", "action": "MVP 범위에서 VIP 메시지 이미지 첨부 기능은 제외하고, 텍스트 기반 채팅 및 링크 공유 기능을 우선 구현한다. 이미지 첨부는 차기 스프린트에서 고려한다."}, {"priority": "P1", "action": "Admin 권한 관리는 초기 MVP에서 VIP Chat 관리자 권한으로 한정하고, 향후 기능 확장에 맞춰 단계적으로 세분화하도록 기획을 구체화한다."}, {"priority": "P2", "action": "VIP Chat의 크로스 플랫폼 UI/UX 일관성을 위해 기획/디자인 단계에서 명확한 가이드라인을 수립하고 개발/QA 단계에서 이를 준수하는지 점검한다."}]}};
+const D = window.__VDT__;
+
+const VERDICT = {
+  '✅': { cls:'vb-ok',   label:'명확',    stat:'명확'   },
+  '⚠️': { cls:'vb-warn', label:'모호',    stat:'모호'   },
+  '?':  { cls:'vb-unk',  label:'미명시',  stat:'미명시' },
+  '+':  { cls:'vb-add',  label:'추가필요',stat:'추가필요'},
+  '🔴': { cls:'vb-risk', label:'리스크',  stat:'리스크' },
+};
+
+function vbadge(v) {
+  const m = VERDICT[v] || VERDICT['?'];
+  return `<span class="vb ${m.cls}">${v} ${m.label}</span>`;
+}
+
+function stBadge(s) {
+  if (s === 'Done')        return `<span class="st-done">✅ Done</span>`;
+  if (s === 'IN PROGRESS') return `<span class="st-wip">⏳ IN PROGRESS</span>`;
+  return `<span class="st-todo">○ ${s||'TODO'}</span>`;
+}
+
+function renderHeader() {
+  return `
+    <div class="header">
+      <div class="header-row">
+        <div class="header-left">
+          <span class="team-badge">🤖 가상 개발팀</span>
+          <div>
+            <div class="header-title">${D.title} — 기획 문서 리스크 분석</div>
+            <div class="header-ticket">${D.ticket_key}</div>
+          </div>
+        </div>
+        <span class="status-badge">⏳ Director 승인 대기 — ${D.analysis_date} 분석 완료</span>
+      </div>
+    </div>`;
+}
+
+function renderStats() {
+  const s = D.stats || {};
+  const items = [
+    { v:'✅', key:'명확',    cls:'green'  },
+    { v:'⚠️', key:'모호',    cls:'orange' },
+    { v:'?',  key:'미명시',  cls:'gray'   },
+    { v:'+',  key:'추가필요',cls:'blue'   },
+    { v:'🔴', key:'리스크',  cls:'red'    },
+  ];
+  return `<div class="stats-bar">${
+    items.map(i => `
+      <div class="stat">
+        <span style="color:var(--${i.cls})">${i.v}</span>
+        <span class="stat-num" style="color:var(--${i.cls})">${s[i.key]||0}</span>
+        <span style="color:var(--text-muted)">${i.key}</span>
+      </div>`).join('')
+  }</div>`;
+}
+
+function renderTabs() {
+  return `<div class="tabs">
+    <div class="tab active" onclick="switchTab('spec',this)">📋 기획서</div>
+    <div class="tab" onclick="switchTab('dev',this)">🛠 개발 리스크</div>
+    <div class="tab" onclick="switchTab('meeting',this)">💬 회의록</div>
+  </div>`;
+}
+
+function renderSpecLeft() {
+  const sp = D.spec || {};
+  let html = `<div class="spec-title">기획서 요약: ${D.title}</div>`;
+
+  if (sp.purpose) html += `
+    <div class="section">
+      <div class="section-label">목적 &amp; 배경</div>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.7">${sp.purpose}</p>
+    </div>`;
+
+  if ((sp.key_features||[]).length) html += `
+    <div class="section">
+      <div class="section-label">주요 기능</div>
+      <table class="feat-table"><tbody>${
+        sp.key_features.map(f=>`<tr><td>${f.component}</td><td>${f.content}</td></tr>`).join('')
+      }</tbody></table>
+    </div>`;
+
+  if ((sp.subtasks||[]).length) html += `
+    <div class="section">
+      <div class="section-label">서브태스크 현황</div>
+      <table class="sub-table">
+        <thead><tr><th>서브태스크</th><th>담당</th><th>상태</th></tr></thead>
+        <tbody>${sp.subtasks.map(t=>`<tr><td>${t.key}</td><td>${t.owner}</td><td>${stBadge(t.status)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  if ((sp.incomplete_areas||[]).length) html += `
+    <div class="section">
+      <div class="section-label">⚠️ 미완성 영역</div>
+      ${sp.incomplete_areas.map(a => {
+        const author = typeof a === 'object' ? a.author : '';
+        const text   = typeof a === 'object' ? a.comment : a;
+        return `<div class="warn-card">${author?`<div class="warn-author">${author} 코멘트</div>`:''}<div class="warn-text">${text}</div></div>`;
+      }).join('')}
+    </div>`;
+
+  if ((sp.ui_ux_changes||[]).length) html += `
+    <div class="section">
+      <div class="section-label">UI/UX 변경사항</div>
+      <ul class="bul">${sp.ui_ux_changes.map(u=>`<li>${u}</li>`).join('')}</ul>
+    </div>`;
+
+  if ((sp.edge_cases||[]).length) html += `
+    <div class="section">
+      <div class="section-label">예외/엣지케이스 (기획서 명시분)</div>
+      <ul class="bul">${sp.edge_cases.map(e=>`<li>${e}</li>`).join('')}</ul>
+    </div>`;
+
+  return html;
+}
+
+function renderRightPanel() {
+  const items   = D.ac_items || [];
+  const dev     = D.developer || {};
+  const order   = dev.impl_order || [];
+  const risks   = dev.impl_risks || [];
+
+  // ── 통계 실시간 재계산 (stats 바와 일치 보장) ──
+  const realStats = {'명확':0,'모호':0,'미명시':0,'추가필요':0,'리스크':0};
+  const lmap = {'✅':'명확','⚠️':'모호','?':'미명시','+':'추가필요','🔴':'리스크'};
+  items.forEach(ac => { const k = lmap[ac.verdict||'?']; if(k) realStats[k]++; });
+  const total = items.length;
+
+  // ── AC 판정 통계 배지 ──
+  const statBadges = Object.entries(realStats)
+    .filter(([,n]) => n > 0)
+    .map(([k,n]) => {
+      const icon = Object.entries(lmap).find(([,v])=>v===k)?.[0] || '?';
+      const vcls = VERDICT[icon]?.cls || 'vb-unk';
+      return `<span class="vb ${vcls}" style="margin-right:4px">${icon} ${k} ${n}</span>`;
+    }).join('');
+
+  // ── AC 테이블 ──
+  const acRows = items.map(ac => `
+    <tr>
+      <td class="ac-id">${ac.id||''}</td>
+      <td>${ac.content||''}</td>
+      <td>${vbadge(ac.verdict||'?')}</td>
+      <td style="color:var(--text-muted)">${ac.evidence||'—'}</td>
+      <td style="color:var(--text-muted);font-style:italic">${ac.assumption||'—'}</td>
+    </tr>`).join('');
+
+  // ── 개발팀 권고사항 (impl_order) ──
+  let devSection = '';
+  if (order.length || risks.length) {
+    const orderItems = order.map((o, i) => `
+      <li>
+        <span class="rec-num">${i+1}</span>
+        <span>${o}</span>
+      </li>`).join('');
+
+    const riskItems = risks.filter(r => r.complexity === 'High').map(r => `
+      <div class="rec-risk-row">
+        <span class="cx-high">🔴 High</span>
+        <span style="font-weight:600;margin: 0 6px">${r.feature}</span>
+        <span style="color:var(--text-muted)">— ${r.risk}</span>
+      </div>`).join('');
+
+    devSection = `
+      <div class="right-section" style="margin-top:20px">
+        <div class="right-section-title">🛠 개발팀 권고사항</div>
+        ${order.length ? `<ol class="rec-list">${orderItems}</ol>` : ''}
+        ${riskItems ? `<div class="rec-risks" style="margin-top:10px">${riskItems}</div>` : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="right-section-title" style="margin-bottom:6px">
+      AC별 판정 테이블 <span style="color:var(--text-muted);font-weight:400">(${total}건)</span>
+    </div>
+    <div style="margin-bottom:10px">${statBadges}</div>
+    <table class="ac-table">
+      <thead><tr>
+        <th style="width:56px">AC#</th>
+        <th>내용</th>
+        <th style="width:86px">판정</th>
+        <th style="width:26%">근거</th>
+        <th style="width:22%">가정/추론</th>
+      </tr></thead>
+      <tbody>${acRows}</tbody>
+    </table>
+    ${devSection}`;
+}
+
+function ctClass(type, isRisky) {
+  const t = (type||'').trim();
+  if (isRisky)           return 'ct-risky ct-cmod';
+  if (t === '신규')      return 'ct-new';
+  if (t === '수정')      return 'ct-mod';
+  if (t === '공용 수정') return 'ct-cmod';
+  if (t === '완료')      return 'ct-done';
+  if (t === '삭제')      return 'ct-del';
+  return 'ct-mod';
+}
+function cxClass(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return 'cx-high';
+  if (v === 'med')  return 'cx-med';
+  return 'cx-low';
+}
+function cxIcon(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return '🔴';
+  if (v === 'med')  return '🟠';
+  return '🟢';
+}
+
+function renderDevPanel() {
+  const dev = D.developer || {};
+  const impact   = dev.impact_scope  || D.impact_scope  || [];
+  const implRisk = dev.impl_risks    || D.impl_risks     || [];
+  const order    = dev.impl_order    || D.impl_order     || [];
+  const notes    = dev.tech_notes    || D.tech_notes     || [];
+  const title    = D.title || '';
+
+  let html = `<h2 style="font-size:18px;font-weight:700;margin-bottom:22px">개발 리스크 분석: ${title}</h2>`;
+
+  // 영향 범위 분석
+  if (impact.length) {
+    const rows = impact.map(i => `
+      <tr>
+        <td>${i.module||''}</td>
+        <td class="${ctClass(i.change_type, i.is_risky)}">${i.is_risky?'⚠️ ':''}${i.change_type||''}</td>
+        <td style="color:var(--text-muted)">${i.detail||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">영향 범위 분석</div>
+        <table class="impact-table">
+          <thead><tr><th style="width:220px">모듈/영역</th><th style="width:120px">변경 유형</th><th>상세</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 리스크 테이블
+  if (implRisk.length) {
+    const rows = implRisk.map(r => `
+      <tr>
+        <td>${r.feature||''}</td>
+        <td class="${cxClass(r.complexity)}">${cxIcon(r.complexity)} ${r.complexity||''}</td>
+        <td style="color:var(--text-muted)">${r.risk||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 리스크 테이블</div>
+        <table class="impl-table">
+          <thead><tr><th>기능</th><th style="width:100px">복잡도</th><th>리스크</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 순서 권고
+  if (order.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 순서 권고</div>
+        <ol class="impl-order">${order.map(o=>`<li>${o}</li>`).join('')}</ol>
+      </div>`;
+  }
+
+  // 기술 리스크 & 주의사항
+  if (notes.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">기술 리스크 &amp; 주의사항</div>
+        <ul class="tech-notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  if (!impact.length && !implRisk.length && !order.length && !notes.length) {
+    html += `<div style="color:var(--text-muted);font-size:13px">개발 리스크 항목이 없습니다.</div>`;
+  }
+
+  return html;
+}
+
+function render() {
+  document.getElementById('app').innerHTML = `
+    ${renderHeader()}
+    ${renderStats()}
+    ${renderTabs()}
+    <div class="content">
+      <div class="tab-panel active" id="tab-spec">
+        <div class="left-panel">${renderSpecLeft()}</div>
+        <div class="right-panel">${renderRightPanel()}</div>
+      </div>
+      <div class="tab-panel" id="tab-dev" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderDevPanel()}
+      </div>
+      <div class="tab-panel" id="tab-meeting" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderMeeting()}
+      </div>
+    </div>`;
+}
+
+function boldify(text) {
+  return (text||'').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+const AGENT_COLOR = {
+  planner:   'var(--accent)',
+  developer: 'var(--orange)',
+  qa:        'var(--green)',
+  ta:        'var(--blue)',
+};
+
+function renderMeeting() {
+  const m = D.meeting;
+  if (!m || (!m.rounds && !m.consensus)) {
+    return `<div class="empty-panel">회의록이 없습니다.</div>`;
+  }
+
+  let html = `
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:6px">
+      회의록: ${D.ticket_key} ${D.title} 분석
+    </h2>
+    <div class="meeting-meta">
+      일시: ${m.date||D.analysis_date} | 참가자: ${(m.participants||[]).join(', ')}
+    </div>
+    <div class="meeting-sys">[SYS] 회의 시작</div>
+  `;
+
+  let lastRound = 0;
+  for (const r of (m.rounds||[])) {
+    if (r.round > lastRound && lastRound > 0) {
+      html += `<div class="meeting-sys">[SYS] Round ${r.round} 시작</div>`;
+    }
+    lastRound = r.round;
+    const color = AGENT_COLOR[r.agent_type] || 'var(--accent)';
+    html += `
+      <div class="meeting-block">
+        <div class="meeting-agent" style="color:${color}">Round ${r.round} — ${r.agent}</div>
+        <div class="meeting-content">${boldify(r.content)}</div>
+      </div>`;
+  }
+
+  if ((m.consensus||[]).length) {
+    html += `<div class="meeting-sys">[SYS] 합의 도출</div>
+    <ul class="consensus-list">
+      ${m.consensus.map(c => {
+        const p = (c.priority||'P1');
+        const cls = p === 'P0' ? 'cp0' : p === 'P1' ? 'cp1' : 'cp2';
+        return `<li><span class="cprio ${cls}">${p}</span><span>${boldify(c.action)}</span></li>`;
+      }).join('')}
+    </ul>`;
+  }
+
+  return html;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  const panel = document.getElementById('tab-' + name);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'flex'; }
+}
+
+render();
+</script>
+</body>
+</html>
