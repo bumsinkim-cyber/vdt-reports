@@ -353,9 +353,11 @@ function renderRightPanel() {
 
     const riskItems = risks.filter(r => r.complexity === 'High').map(r => `
       <div class="rec-risk-row">
-        <span class="cx-high">🔴 High</span>
-        <span style="font-weight:600;margin: 0 6px">${r.feature}</span>
-        <span style="color:var(--text-muted)">— ${r.risk}</span>
+        <span class="cx-high" style="flex-shrink:0;white-space:nowrap">🔴 High</span>
+        <div style="flex:1;min-width:0">
+          <span style="font-weight:600">${r.feature}</span>
+          <span style="color:var(--text-muted)"> — ${r.risk}</span>
+        </div>
       </div>`).join('');
 
     devSection = `
