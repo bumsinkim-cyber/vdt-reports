@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VDT Report</title>
+  <style>
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1c2128;
+      --border: #30363d; --text: #e6edf3; --text-muted: #7d8590;
+      --accent: #4f6ef7;
+      --green: #3fb950; --green-bg: rgba(63,185,80,.12);
+      --orange: #d29922; --orange-bg: rgba(210,153,34,.12);
+      --red: #f85149; --red-bg: rgba(248,81,73,.12);
+      --blue: #58a6ff; --blue-bg: rgba(88,166,255,.12);
+      --gray: #7d8590; --gray-bg: rgba(125,133,144,.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system,'Pretendard',sans-serif; font-size:13px; line-height:1.6; overflow:hidden; }
+
+    /* ── Header ── */
+    .header { background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 12px 20px; }
+    .header-row { display:flex; justify-content:space-between; align-items:center; }
+    .header-left { display:flex; align-items:center; gap:10px; }
+    .team-badge { font-size:11px; background: rgba(79,110,247,.2); color: var(--accent); padding: 2px 8px; border-radius:10px; font-weight:600; }
+    .header-title { font-size:14px; font-weight:700; }
+    .header-ticket { font-size:11px; color: var(--text-muted); margin-top:2px; }
+    .status-badge { font-size:11px; color: var(--orange); background: var(--orange-bg); padding: 3px 10px; border-radius:10px; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display:flex; gap:20px; padding: 8px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+    .stat { display:flex; align-items:center; gap:5px; font-size:12px; cursor:default; }
+    .stat-num { font-weight:700; font-size:13px; }
+
+    /* ── Tabs ── */
+    .tabs { display:flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 20px; }
+    .tab { padding: 9px 14px; font-size:12px; cursor:pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: color .15s; user-select:none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Layout ── */
+    .content { display:flex; height: calc(100vh - 105px); }
+    .tab-panel { display:none; width:100%; }
+    .tab-panel.active { display:flex; }
+
+    /* ── Left panel ── */
+    .left-panel { width:36%; overflow-y:auto; border-right:1px solid var(--border); padding:18px; flex-shrink:0; }
+    .spec-title { font-size:16px; font-weight:700; margin-bottom:16px; line-height:1.4; }
+    .section { margin-bottom:18px; }
+    .section-label { font-size:10px; font-weight:700; color: var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+
+    /* Feature table */
+    .feat-table { width:100%; border-collapse:collapse; }
+    .feat-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .feat-table td:first-child { color: var(--text-muted); width:32%; background: var(--bg-card); white-space:nowrap; }
+
+    /* Subtask table */
+    .sub-table { width:100%; border-collapse:collapse; }
+    .sub-table th { font-size:11px; text-align:left; padding:5px 8px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .sub-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .st-done { color: var(--green); } .st-wip { color: var(--blue); } .st-todo { color: var(--gray); }
+
+    /* Warning */
+    .warn-card { background: rgba(210,153,34,.07); border-left:3px solid var(--orange); padding:8px 10px; margin-bottom:6px; border-radius:0 4px 4px 0; }
+    .warn-author { font-size:11px; color: var(--orange); margin-bottom:3px; }
+    .warn-text { font-size:12px; }
+
+    /* Bullet */
+    .bul { list-style:none; }
+    .bul li { padding:3px 0 3px 14px; font-size:12px; position:relative; }
+    .bul li::before { content:'•'; position:absolute; left:0; color: var(--text-muted); }
+
+    /* ── Right panel ── */
+    .right-panel { flex:1; overflow-y:auto; padding:18px; }
+    .panel-title { font-size:13px; font-weight:600; margin-bottom:12px; }
+
+    /* AC Table */
+    .ac-table { width:100%; border-collapse:collapse; }
+    .ac-table th { font-size:11px; text-align:left; padding:7px 9px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); position:sticky; top:0; z-index:1; }
+    .ac-table td { padding:7px 9px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .ac-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ac-id { font-family:monospace; font-size:11px; color: var(--text-muted); white-space:nowrap; }
+
+    /* Verdict badges */
+    .vb { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .vb-ok   { background: var(--green-bg);  color: var(--green);  }
+    .vb-warn { background: var(--orange-bg); color: var(--orange); }
+    .vb-unk  { background: var(--gray-bg);   color: var(--gray);   }
+    .vb-add  { background: var(--blue-bg);   color: var(--blue);   }
+    .vb-risk { background: var(--red-bg);    color: var(--red);    }
+
+    /* Right panel sections */
+    .right-section { margin-bottom: 20px; }
+    .right-section-title { font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:10px; }
+    .rec-list { padding-left:0; list-style:none; margin:0; display:flex; flex-direction:column; gap:6px; }
+    .rec-list li { display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); line-height:1.5; }
+    .rec-num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .rec-risk-row { display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .rec-risk-row:last-child { border-bottom:none; }
+
+    /* Dev panel */
+    .dev-section { margin-bottom:28px; }
+    .dev-section-title { font-size:14px; font-weight:700; color: var(--accent); margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+    /* Impact scope table */
+    .impact-table { width:100%; border-collapse:collapse; }
+    .impact-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impact-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impact-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ct-new  { color: var(--blue); }
+    .ct-mod  { color: var(--text-muted); }
+    .ct-cmod { color: var(--orange); }
+    .ct-done { color: var(--green); }
+    .ct-del  { color: var(--red); }
+    .ct-risky::before { content:'⚠️ '; }
+
+    /* Impl risk table */
+    .impl-table { width:100%; border-collapse:collapse; }
+    .impl-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impl-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impl-table tr:hover td { background: rgba(255,255,255,.018); }
+    .cx-high { color: var(--red); font-weight:600; }
+    .cx-med  { color: var(--orange); font-weight:600; }
+    .cx-low  { color: var(--green); font-weight:600; }
+
+    /* Impl order list */
+    .impl-order { list-style:none; counter-reset:order; }
+    .impl-order li { counter-increment:order; padding:6px 0 6px 28px; font-size:12px; position:relative; border-bottom:1px solid rgba(48,54,61,.6); }
+    .impl-order li:last-child { border-bottom:none; }
+    .impl-order li::before { content:counter(order); position:absolute; left:0; top:7px; width:18px; height:18px; background: var(--accent); color:#fff; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; text-align:center; }
+
+    /* Tech notes */
+    .tech-notes { list-style:none; }
+    .tech-notes li { padding:5px 0 5px 16px; font-size:12px; color: var(--text-muted); position:relative; border-bottom:1px solid rgba(48,54,61,.4); }
+    .tech-notes li:last-child { border-bottom:none; }
+    .tech-notes li::before { content:'•'; position:absolute; left:0; color: var(--accent); font-size:14px; line-height:1.4; }
+
+    /* ── Meeting ── */
+    .meeting-meta { font-size:12px; color: var(--text-muted); margin-bottom:24px; }
+    .meeting-sys {
+      font-size:11px; font-weight:700; color: var(--text-muted);
+      letter-spacing:.6px; padding:10px 0 8px;
+      border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+      margin: 20px 0 16px;
+    }
+    .meeting-sys:first-of-type { margin-top:0; border-top:none; }
+    .meeting-block { margin-bottom:22px; }
+    .meeting-agent { font-size:14px; font-weight:700; margin-bottom:8px; }
+    .meeting-content { font-size:13px; line-height:1.8; color: var(--text-muted); }
+    .meeting-content strong { color: var(--text); }
+    .consensus-list { list-style:none; margin-top:4px; }
+    .consensus-list li {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:8px 0; font-size:13px; line-height:1.6;
+      border-bottom:1px solid rgba(48,54,61,.5);
+    }
+    .consensus-list li:last-child { border-bottom:none; }
+    .cprio { font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; margin-top:2px; flex-shrink:0; }
+    .cp0 { background: var(--red-bg);    color: var(--red); }
+    .cp1 { background: var(--orange-bg); color: var(--orange); }
+    .cp2 { background: var(--green-bg);  color: var(--green); }
+
+    /* Meeting placeholder */
+    .empty-panel { width:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:13px; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+window.__VDT__ = {"ticket_key": "CVS-13045", "title": "레이싱 Meta - 1 (선착순 100인)", "analysis_date": "2026-04-30", "status": "Director 승인 대기", "stats": {"명확": 3, "모호": 10, "미명시": 0, "추가필요": 0, "리스크": 3}, "spec": {"purpose": "", "key_features": [{"component": "Web Image Popup Base", "content": "Popup Racing Main (Vertical) / Anchor / Base Area / Base Anchor / Web Image Popup Base | 1024x2048 | 가로/세로 공용 이미지, 비율에 맞춰 Scale 조절, 마스크 적용으로 각 모서리 라운드 불필요"}, {"component": "Web Image Bottom Base / Web Image Bottom Base Vertical", "content": "Popup Racing Main (Vertical) / Base / Anchor / Bottom Area / Web Image Bottom Base | Horizontal: 512x64 / Vertical: 512x128 | 곡률 차이로 가로세로 분리, 마스크 적용으로 하단 모서리 라운드 불필요"}, {"component": "Web Image Popup Outline", "content": "Popup Racing Main (Vertical) / Base / Anchor / Outline Area / Web Image Popup Outline, Popup Racing In Game State/Anchor/Web Image Popup Outline | 128x128 (나인패치용) | 나인패치 사용으로 그라디언트 표현 주의"}, {"component": "Web Image Deco", "content": "Popup Racing Main (Vertical) / Base / Anchor / Bottom Area / Web Image Deco | 256x256 | 우상단앵커, 좌측은 마스크영역으로 잘림, 중앙 버튼에 겹치지 않도록 이미지 배치"}, {"component": "Web Image Title Main", "content": "Popup Racing Main Title / Web Image Title | 512x128"}, {"component": "Web Image Title Restart", "content": "Popup Racing Main Title / Web Image Title | 512x128"}, {"component": "Web Image Title Win", "content": "Popup Racing Main Title / Web Image Title | 512x128"}, {"component": "Web Image Reward Icon", "content": "팝업 Racing Main Contents, In Game State/Reward Area, In Game State/Too Slow Area, Popup Reward Racing Chest/Chest Area 등 4개 위치에서 사용 | 256x256"}, {"component": "Web Image Stage Cell Base", "content": "Object Racing Stage Cell L(R)/Anchor/Web Image Stage Cell Base | 256x256"}, {"component": "Web Image Stage Cell Icon", "content": "Racing Theme Icon/Web Image Stage Cell Icon | 64x64"}, {"component": "Web Image Stage Icon Base", "content": "Stage Number/anchor/Base Inactive+Active/Web Image Stage Icon Base | 64x64"}, {"component": "Web Image Meta Icon Small", "content": "Racing Icon Image Small/Web Image Meta Icon Small | 64x64 | 쿠도아이콘 사용"}, {"component": "Web Image Meta Icon Inactive", "content": "Racing Icon Image/Web Image Meta Icon | 128x128 | 로비 아이콘 slots left 상태일 시 사용"}, {"component": "Web Image Meta Icon Common", "content": "Racing Icon Image/Web Image Meta Icon Common | 128x128 | 로비 아이콘 레이싱 시작 상태에서 사용"}, {"component": "Web Image Racing Kudo Icon", "content": "Racing Kudo Icon/Mask/Web Image Racing Kudo Icon | 128x50"}, {"component": "Web Image Popup State Base", "content": "Popup Racing In Game State/Anchor/Base Area/Web Image Popup State Base | 512x512 | 사각형 형태의 이미지로 제작"}], "subtasks": [{"key": "CVS-13240", "owner": "서버", "status": "Done"}, {"key": "CVS-13241", "owner": "클라", "status": "Done"}, {"key": "CVS-13242", "owner": "TA", "status": "Done"}, {"key": "CVS-13420", "owner": "1차 피드백", "status": "IN PROGRESS"}], "incomplete_areas": [{"author": "", "comment": "아트 가이드 PSB 슬라이드는 이미지 전용으로 텍스트 추출 불가"}], "ui_ux_changes": ["Web Image Popup Base: 가로/세로 공용 이미지, 비율에 맞춰 Scale 조절, 마스크 적용으로 각 모서리 라운드 불필요", "Web Image Bottom Base / Vertical: 곡률 차이로 가로세로 분리, 마스크 적용으로 하단 모서리 라운드 불필요", "Web Image Popup Outline: 나인패치 사용으로 그라디언트 표현 주의", "Web Image Deco: 우상단앵커, 좌측은 마스크영역으로 잘림, 중앙 버튼에 겹치지 않도록 이미지 배치", "Web Image Meta Icon Inactive: 로비 아이콘 slots left 상태일 시 사용", "Web Image Meta Icon Common: 로비 아이콘 레이싱 시작 상태에서 사용", "Web Image Popup State Base: 사각형 형태의 이미지로 제작"], "edge_cases": []}, "ac_items": [{"id": "A-01", "category": "A", "category_name": "아트", "content": "Web Image Popup Base (1024x2048): 가로/세로 공용 이미지, 비율에 맞춰 Scale 조절, 마스크 적용으로 각 모서리 라운드 불필요", "source": "Web Image Guide", "verdict": "🔴", "verdict_label": "리스크", "evidence": "가로/세로 공용 Scale 조절 명시. TA 리스크: 소프트 마스킹 엔진 지원 여부 Day 1 검증 필요. 스케일링 기준 앵커·전환 시 레이아웃 재계산 범위 미명시. High 리스크.", "assumption": "마스크는 엔진 기본 Mask 컴포넌트로 처리 가능하다고 가정. 스케일 기준은 uniform scale이라고 가정."}, {"id": "A-02", "category": "A", "category_name": "아트", "content": "Web Image Bottom Base (Horizontal: 512x64) / Web Image Bottom Base Vertical (Vertical: 512x128): 곡률 차이로 가로세로 분리, 마스크 적용으로 하단 모서리 라운드 불필요", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "가로/세로 분리 이유 '곡률 차이' 명시. 실제 곡률 수치·마스크 적용 방식·레이아웃 앵커 미명시. TA 리스크 Med 반영.", "assumption": "곡률 수치는 PSB 아트 가이드 수동 확인으로 보완해야 한다고 가정."}, {"id": "A-03", "category": "A", "category_name": "아트", "content": "Web Image Popup Outline (128x128, 나인패치용): 나인패치 사용으로 그라디언트 표현 주의", "source": "Web Image Guide", "verdict": "🔴", "verdict_label": "리스크", "evidence": "나인패치 사용 명시. '그라디언트 표현 주의' 문구가 제약을 암시하나 슬라이스 경계·그라디언트 방향·쉐이더 대체 여부 미명시. TA: 슬라이스 경계 아티팩트 High 리스크. QA 검증 기준 미정의.", "assumption": "나인패치 슬라이스 영역은 아티스트가 별도 정의한다고 가정."}, {"id": "A-04", "category": "A", "category_name": "아트", "content": "Web Image Deco (256x256): 우상단앵커, 좌측은 마스크영역으로 잘림, 중앙 버튼에 겹치지 않도록 이미지 배치", "source": "Web Image Guide", "verdict": "🔴", "verdict_label": "리스크", "evidence": "우상단 앵커+마스크 잘림+중앙버튼 겹침방지 3중 제약 동시 적용. 각 제약 우선순위·버튼 기준 안전 거리 수치·마스크 경계값 미명시. High 리스크.", "assumption": "중앙 버튼 영역은 팝업 중앙 고정이라고 가정. 마스크 잘림 범위는 PSB 수동 확인 필요."}, {"id": "A-05", "category": "A", "category_name": "아트", "content": "Web Image Title Main (512x128): Popup Racing Main Title / Web Image Title", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "에셋 크기·배치 위치 명시. 텍스트 폰트·색상·정렬 기준·다국어 대응 여부·오버플로우 처리 미명시. PSB 텍스트 추출 불가로 수치 수동 확인 의존.", "assumption": "타이틀 이미지는 텍스트 레이어 포함 완성형 이미지로 제공된다고 가정."}, {"id": "A-06", "category": "A", "category_name": "아트", "content": "Web Image Title Restart (512x128): Popup Racing Main Title / Web Image Title", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "에셋 크기 명시. A-05와 차이점(레이아웃·색상·상태 전환 트리거) 미명시. Restart 타이틀 표시 조건 불명확.", "assumption": "Restart 상태 진입 조건은 기획서 별도 항목에 정의되어 있다고 가정."}, {"id": "A-07", "category": "A", "category_name": "아트", "content": "Web Image Title Win (512x128): Popup Racing Main Title / Web Image Title", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "에셋 크기 명시. Win 상태 트리거·Main/Restart/Win 타이틀 간 전환 로직·동시 표시 방지 조건 미명시.", "assumption": "세 타이틀은 상호 배타적으로 표시된다고 가정."}, {"id": "A-08", "category": "A", "category_name": "아트", "content": "Web Image Reward Icon (256x256): 팝업 Racing Main Contents, In Game State/Reward Area, In Game State/Too Slow Area, Popup Reward Racing Chest/Chest Area 등 4개 위치에서 사용", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "4개 위치 공용 참조 명시. 위치별 표시 크기·정렬·스케일 조건 미명시. TA: 공용 참조 전략 미합의 Med 리스크. Atlas 패킹 초과 가능성.", "assumption": "4개 위치 모두 동일 에셋(256x256) 참조, 크기 조절은 UI 레이아웃 시스템이 담당한다고 가정."}, {"id": "A-09", "category": "A", "category_name": "아트", "content": "Web Image Stage Cell Base (256x256): Object Racing Stage Cell L(R)/Anchor/Web Image Stage Cell Base", "source": "Web Image Guide", "verdict": "✅", "verdict_label": "명확", "evidence": "에셋 크기(256x256)·배치 경로 명시. 기술 리스크 없음. 복잡도 낮음.", "assumption": ""}, {"id": "A-10", "category": "A", "category_name": "아트", "content": "Web Image Stage Cell Icon (64x64): Racing Theme Icon/Web Image Stage Cell Icon", "source": "Web Image Guide", "verdict": "✅", "verdict_label": "명확", "evidence": "에셋 크기(64x64)·배치 경로 명시. 소규모 아이콘으로 기술 리스크 없음.", "assumption": ""}, {"id": "A-11", "category": "A", "category_name": "아트", "content": "Web Image Stage Icon Base (64x64): Stage Number/anchor/Base Inactive+Active/Web Image Stage Icon Base", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "에셋 크기·배치 경로 명시. Inactive/Active 동일 에셋 여부 불명확. 상태 전환 트리거 미명시.", "assumption": "Inactive/Active는 색상 오버레이 또는 별도 에셋으로 처리한다고 가정."}, {"id": "A-12", "category": "A", "category_name": "아트", "content": "Web Image Meta Icon Small (64x64): Racing Icon Image Small/Web Image Meta Icon Small, 쿠도아이콘 사용", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "에셋 크기·'쿠도아이콘 사용' 명시. '쿠도아이콘'이 기존 공용 에셋인지 신규 제작인지 불명확. Med 리스크(PSB 미추출) 반영.", "assumption": "쿠도아이콘은 기존 에셋 라이브러리에서 참조한다고 가정."}, {"id": "A-13", "category": "A", "category_name": "아트", "content": "Web Image Meta Icon Inactive (128x128): 로비 아이콘 slots left 상태일 시 사용", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "'slots left 상태' 진입 조건(잔여 슬롯 수 기준값) 미명시. A-12~A-14 3상태 전환 우선순위 불명확. PSB 미추출 Med 리스크 반영.", "assumption": "slots left 조건 수치는 기획서 별도 항목에 정의된다고 가정."}, {"id": "A-14", "category": "A", "category_name": "아트", "content": "Web Image Meta Icon Common (128x128): 로비 아이콘 레이싱 시작 상태에서 사용", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "'레이싱 시작 상태' 구체적 정의 미명시. A-13 Inactive 상태와의 전환 기준 불명확. 3상태 전환 로직 전체 Med 리스크.", "assumption": "레이싱 시작 가능 상태는 슬롯 1개 이상 남아있을 때라고 가정."}, {"id": "A-15", "category": "A", "category_name": "아트", "content": "Web Image Racing Kudo Icon (128x50): Racing Kudo Icon/Mask/Web Image Racing Kudo Icon", "source": "Web Image Guide", "verdict": "✅", "verdict_label": "명확", "evidence": "에셋 크기(128x50)·배치 경로·마스크 적용 명시. 고정 크기로 스케일 이슈 없음. 기술 리스크 없음.", "assumption": ""}, {"id": "A-16", "category": "A", "category_name": "아트", "content": "Web Image Popup State Base (512x512): Popup Racing In Game State/Anchor/Base Area/Web Image Popup State Base, 사각형 형태의 이미지로 제작", "source": "Web Image Guide", "verdict": "⚠️", "verdict_label": "모호", "evidence": "에셋 크기·'사각형 형태' 명시. In Game State 표시 조건·Z-order·사각형 제약 이유 미명시. PSB 텍스트 추출 불가로 수치 수동 확인 의존.", "assumption": "사각형 형태 제약은 마스크 없이 사용하기 위한 조건이라고 가정."}], "developer": {"impact_scope": [{"module": "Web Image Popup Base (1024x2048)", "change_type": "신규", "is_risky": true, "detail": "가로/세로 공용으로 사용되므로 해상도 분기 로직이 없는 기존 팝업 시스템과 충돌 가능. 마스크 적용 방식이 기존 팝업과 다를 경우 렌더링 파이프라인 변경 필요."}, {"module": "Web Image Bottom Base (Horizontal/Vertical 분리)", "change_type": "신규", "is_risky": true, "detail": "가로(512x64)/세로(512x128) 별도 에셋 분리. 레이아웃 전환 로직에서 잘못된 에셋 참조 시 UI 깨짐 발생."}, {"module": "Web Image Popup Outline (128x128 나인패치)", "change_type": "신규", "is_risky": true, "detail": "나인패치 그라디언트 구현 시 슬라이스 경계 색상 끊김 가능. 엔진별 렌더링 방식 차이로 그라디언트 깨질 수 있음."}, {"module": "Web Image Deco (256x256, 우상단 앵커)", "change_type": "신규", "is_risky": true, "detail": "우상단 앵커+마스크 잘림+중앙버튼 겹침 방지 3중 조건. 해상도/종횡비 변화 시 동적 배치 검증 필요."}, {"module": "Web Image Reward Icon (256x256, 4개 위치 공용)", "change_type": "공용 수정", "is_risky": true, "detail": "4개 위치 동일 에셋 공용 참조. 아이콘 수정 시 전 위치 동시 반영."}, {"module": "Web Image Meta Icon 3상태 (Small/Inactive/Common)", "change_type": "공용 수정", "is_risky": true, "detail": "로비 진입점 아이콘으로 다수 화면 참조 가능. 상태 전환 조건 불명확 시 잘못된 상태 아이콘 노출 위험."}, {"module": "Web Image Stage Cell Base/Icon", "change_type": "신규", "is_risky": false, "detail": "스테이지 셀 단위 구성으로 영향 범위 한정. Atlas 패킹 효율 확인 필요."}, {"module": "Web Image Stage Icon Base (Inactive/Active)", "change_type": "신규", "is_risky": false, "detail": "상태 전환 로직이 기존 상태머신과 연동 확인 필요."}, {"module": "Web Image Racing Kudo Icon (128x50)", "change_type": "신규", "is_risky": false, "detail": "비정형 종횡비. 레이아웃 그룹 내 정렬 시 여백 계산 주의."}, {"module": "Web Image Popup State Base (512x512)", "change_type": "신규", "is_risky": false, "detail": "사각형 단순 구조. Title 이미지 3종과 레이어 순서 충돌 가능성 확인 필요."}, {"module": "Web Image Title Main/Restart/Win (512x128, 3종)", "change_type": "신규", "is_risky": false, "detail": "팝업 상태머신과 에셋 매핑 테이블 관리 필요."}, {"module": "아트 가이드 PSB (텍스트 추출 불가)", "change_type": "수정", "is_risky": true, "detail": "PSB 슬라이드 이미지 전용으로 스펙 추출 불가. 구현 중 스펙 해석 오류 시 재작업 발생."}], "impl_risks": [{"feature": "Popup Base 가로/세로 공용 마스크 처리", "complexity": "High", "risk": "1024x2048 단일 에셋 양방향 레이아웃 마스크 처리 시 해상도별 오프셋 계산 오류로 전 해상도 회귀 테스트 필요"}, {"feature": "Popup Outline 나인패치 그라디언트", "complexity": "High", "risk": "128x128 나인패치 그라디언트 표현 시 슬라이스 영역 정밀 설계 필요. 엔진 렌더러별 그라디언트 끊김 실기 검증 필수"}, {"feature": "Deco 다중 제약 조건 레이아웃", "complexity": "High", "risk": "우상단앵커+마스크 클리핑+버튼 충돌 방지 3중 동적 레이아웃은 Safe Area·폰트 스케일 변화 등 외부 요인에 취약"}, {"feature": "Meta Icon 3상태 전환 로직", "complexity": "Med", "risk": "상태 전환 트리거 조건이 PSB 미추출로 불명확. 구현 후 상태 불일치 버그 가능성"}, {"feature": "Reward Icon 4위치 공용 참조 관리", "complexity": "Med", "risk": "공용 에셋 변경 시 4곳 동시 영향. 향후 위치별 개별화 요구 시 에셋 구조 재설계 필요"}, {"feature": "Bottom Base Horizontal/Vertical 분기 처리", "complexity": "Med", "risk": "분기를 코드로 처리하지 않으면 레이아웃 전환 시 잘못된 에셋 바인딩 위험"}, {"feature": "Stage Cell Atlas 최적화", "complexity": "Low", "risk": "256x256 셀 반복 시 드로우콜 증가 가능. Sprite Atlas 사전 패킹 확인 필요"}, {"feature": "Racing Kudo Icon 비정형 종횡비 정렬", "complexity": "Low", "risk": "128x50 레이아웃 그룹 내 수직 중앙정렬 시 픽셀 어긋남 가능"}], "impl_order": ["1순위: 아트 가이드 PSB 텍스트 스펙 확보 — 텍스트 추출 불가 상태에서 구현 시 전체 재작업 리스크 최고", "2순위: Popup Base + Popup Outline 구현 및 마스크 검증 — 이후 모든 팝업 컴포넌트의 컨테이너 역할", "3순위: Meta Icon 3상태 및 Bottom Base 분기 로직 구현 — 공용 참조 컴포넌트로 영향 범위 넓음", "4순위: Deco 다중 제약 레이아웃 구현 — Popup Base 확정 후 좌표 계산 가능", "5순위: Stage Cell / Reward Icon / Kudo Icon 등 독립 컴포넌트 — 병렬 진행 가능"], "tech_notes": ["PSB 아트 가이드 텍스트 스펙 추출 불가 상태이므로 구현 착수 전 아트팀 텍스트 형식 스펙 수령 필수", "나인패치(Popup Outline) 그라디언트는 엔진 Sliced 렌더러가 보간하지 않으므로 그라디언트 영역을 Stretch 슬라이스 밖에 배치하거나 Shader 대안 사전 검토 필요", "가로/세로 공용 Popup Base 마스크 처리 시 타깃 엔진 버전의 소프트 마스킹 지원 여부 사전 확인", "Reward Icon 공용 참조 전략을 기획팀과 지금 합의하지 않으면 향후 위치별 개별화 시 에셋 구조 전면 재설계 필요", "CVS-13420(1차 피드백) IN PROGRESS 상태이므로 피드백 완료 전 Popup Base·Deco 코드 구현은 인터페이스만 선행 정의 권장"]}, "artist": {"ui_ux_flow": ["로비 화면 → (레이싱 메타 아이콘 탭) → 팝업 오픈 (Popup Base + Outline)", "팝업 오픈 → (슬롯 잔여 확인) → Meta Icon Inactive 표시 (slots left 상태)", "팝업 오픈 → (레이싱 시작 가능 상태) → Meta Icon Common 표시", "팝업 오픈 → (스테이지 셀 선택) → Stage Cell Base + Stage Icon Base (Active/Inactive) 표시", "스테이지 진행 → (보상 획득) → Reward Icon + Kudo Icon 노출", "게임 시작 → (Title Main 표시) → 게임 진행", "게임 재시작 → (Title Restart 표시) → 재도전", "게임 승리 → (Title Win 표시) → Popup State Base + 보상 UI 노출"], "assets": {"images": [{"name": "web_image_popup_base", "usage": "가로/세로 공용 팝업 배경. 비율에 맞춰 Scale 조절, 마스크로 모서리 라운드 처리", "size": "1024x2048", "is_new": true}, {"name": "web_image_bottom_base_horizontal", "usage": "팝업 하단 버튼 영역 - 가로형. 마스크로 하단 모서리 라운드 불필요", "size": "512x64", "is_new": true}, {"name": "web_image_bottom_base_vertical", "usage": "팝업 하단 버튼 영역 - 세로형. 곡률 차이로 가로형과 분리", "size": "512x128", "is_new": true}, {"name": "web_image_popup_outline", "usage": "팝업 외곽선. 나인패치 사용, 그라디언트 표현 시 중앙 슬라이스 주의", "size": "128x128", "is_new": true}, {"name": "web_image_deco", "usage": "팝업 우상단 데코. 우상단 앵커, 좌측 마스크 잘림, 중앙 버튼 미겹침 배치", "size": "256x256", "is_new": true}, {"name": "web_image_title_main", "usage": "게임 진입 시 메인 타이틀", "size": "512x128", "is_new": true}, {"name": "web_image_title_restart", "usage": "게임 재시작 상태 타이틀", "size": "512x128", "is_new": true}, {"name": "web_image_title_win", "usage": "게임 승리 상태 타이틀", "size": "512x128", "is_new": true}, {"name": "web_image_reward_icon", "usage": "보상 아이콘. 팝업 내 4개 위치 공용 사용", "size": "256x256", "is_new": true}, {"name": "web_image_stage_cell_base", "usage": "스테이지 셀 배경 베이스", "size": "256x256", "is_new": true}, {"name": "web_image_stage_cell_icon", "usage": "스테이지 셀 내부 아이콘", "size": "64x64", "is_new": true}, {"name": "web_image_stage_icon_base_inactive", "usage": "스테이지 아이콘 베이스 - 비활성 상태", "size": "64x64", "is_new": true}, {"name": "web_image_stage_icon_base_active", "usage": "스테이지 아이콘 베이스 - 활성 상태", "size": "64x64", "is_new": true}, {"name": "web_image_meta_icon_small", "usage": "로비 레이싱 메타 소형 아이콘 (기본 노출용)", "size": "64x64", "is_new": true}, {"name": "web_image_meta_icon_inactive", "usage": "로비 아이콘 - slots left 상태", "size": "128x128", "is_new": true}, {"name": "web_image_meta_icon_common", "usage": "로비 아이콘 - 레이싱 시작 가능 상태", "size": "128x128", "is_new": true}, {"name": "web_image_racing_kudo_icon", "usage": "레이싱 쿠도 포인트 아이콘", "size": "128x50", "is_new": true}, {"name": "web_image_popup_state_base", "usage": "팝업 State 영역 배경. 사각형 형태, 라운드 처리 불필요", "size": "512x512", "is_new": true}], "animations": [], "effects": [], "fonts": []}, "design_guidelines": ["팝업 배경(Popup Base)은 마스크로 모서리 라운드 처리 — 이미지 자체 라운드 불필요", "Bottom Base는 가로/세로 곡률 차이로 반드시 분리 제작", "Popup Outline은 128x128 나인패치 — 그라디언트는 중앙 슬라이스에만, 코너 슬라이스 그라디언트 주의", "Deco는 우상단 앵커 기준 배치 — 핵심 요소 우측 배치, 중앙 버튼 Z-order 충돌 금지", "Popup State Base는 사각형 형태로 제작 (라운드 금지)", "Reward Icon은 4개 위치 공용 — 배경/상태별 변형 없이 일관성 유지", "Stage Icon Base는 Inactive/Active 2종 세트 (색상/밝기로 상태 구분)", "Meta Icon은 Small/Inactive/Common 3종 명확히 구분", "모든 이미지는 PNG-32 또는 최적화 PNG-8로 납품", "슬라이드 17(아트 가이드 PSB) 기반 항목은 에셋 목록에서 제외 — 수동 확인 필요"], "total_asset_days": 5, "asset_summary": "신규 이미지 18종 (팝업/로비/스테이지/타이틀/보상), 애니메이션·이펙트·폰트 없음, 예상 5일"}, "ta": {"asset_specs": [{"name": "Popup Base", "format": "PNG", "resolution": "1024x2048", "atlas": "N", "memory_est": "~2048KB (압축 후)"}, {"name": "Bottom Base H", "format": "PNG", "resolution": "512x64", "atlas": "Y", "memory_est": "~128KB"}, {"name": "Bottom Base V", "format": "PNG", "resolution": "512x128", "atlas": "Y", "memory_est": "~256KB"}, {"name": "Popup Outline", "format": "PNG", "resolution": "128x128", "atlas": "N", "memory_est": "~64KB (나인패치 독립 슬롯)"}, {"name": "Deco", "format": "PNG", "resolution": "256x256", "atlas": "Y", "memory_est": "~256KB"}, {"name": "State Base", "format": "PNG", "resolution": "512x512", "atlas": "Y", "memory_est": "~1024KB"}, {"name": "Title Main", "format": "PNG", "resolution": "512x128", "atlas": "Y", "memory_est": "~256KB"}, {"name": "Title Restart", "format": "PNG", "resolution": "512x128", "atlas": "Y", "memory_est": "~256KB"}, {"name": "Title Win", "format": "PNG", "resolution": "512x128", "atlas": "Y", "memory_est": "~256KB"}, {"name": "Stage Cell Base", "format": "PNG", "resolution": "256x256", "atlas": "Y", "memory_est": "~256KB"}, {"name": "Stage Cell Icon", "format": "PNG", "resolution": "64x64", "atlas": "Y", "memory_est": "~16KB"}, {"name": "Stage Icon Base Active", "format": "PNG", "resolution": "64x64", "atlas": "Y", "memory_est": "~16KB"}, {"name": "Stage Icon Base Inactive", "format": "PNG", "resolution": "64x64", "atlas": "Y", "memory_est": "~16KB"}, {"name": "Meta Icon Small", "format": "PNG", "resolution": "64x64", "atlas": "Y", "memory_est": "~16KB"}, {"name": "Meta Icon Inactive", "format": "PNG", "resolution": "128x128", "atlas": "Y", "memory_est": "~64KB"}, {"name": "Meta Icon Common", "format": "PNG", "resolution": "128x128", "atlas": "Y", "memory_est": "~64KB"}, {"name": "Reward Icon", "format": "PNG", "resolution": "256x256", "atlas": "Y", "memory_est": "~256KB (4위치 공용)"}, {"name": "Racing Kudo Icon", "format": "PNG", "resolution": "128x50", "atlas": "Y", "memory_est": "~25KB"}], "effect_specs": [], "pipeline_impact": {"build_changed": false, "import_changes": ["신규 에셋 18종 임포트 설정 추가 (압축 포맷, mipmap 여부)", "Popup Outline 나인패치 슬라이스 경계값 설정 (Sprite Mode: Sliced)", "Popup Base 단독 임포트 (Atlas 제외, Max Texture Size 2048 유지)", "Atlas 대상 에셋 Sprite Atlas 할당", "Reward Icon 공용 참조 전략 확정 후 Addressable/Atlas 경로 통일"], "bundle_note": "Popup Base 단독 번들 분리 권장. 나머지는 RacingMeta_UI Atlas 통합 패킹. 전체 추가 용량 압축 기준 약 3~4MB 예상."}, "performance_notes": [{"item": "Stage Cell Base 반복 배치 드로우콜", "impact": "Atlas 미포함 시 셀 수만큼 드로우콜 분리", "mitigation": "Stage Cell 계열을 동일 Atlas에 패킹하여 Batching 활성화"}, {"item": "Popup Base 대형 텍스처 메모리", "impact": "RGBA32 비압축 시 8MB 점유, 저사양 디바이스 압박", "mitigation": "ETC2(Android)/ASTC 4x4(iOS) 압축으로 1~2MB 절감"}, {"item": "Popup Base 소프트 마스크", "impact": "엔진 기본 Mask는 소프트 엣지 미지원", "mitigation": "Soft Mask 에셋 또는 커스텀 쉐이더 알파 페이드 개발팀 사전 합의 필요"}, {"item": "Reward Icon 4위치 공용 참조", "impact": "위치별 별도 에셋 시 중복 메모리 로드", "mitigation": "단일 에셋 공용 참조, 상태 변화는 Material Property Block으로 처리"}], "ta_risks": [{"item": "Popup Outline 나인패치 그라디언트", "risk": "Sliced 렌더러는 텍스처 보간 없이 픽셀 스트레치. 슬라이스 경계 그라디언트 아티팩트 발생", "recommendation": "그라디언트를 Center 영역에만 배치하거나 Overlay 레이어 분리. 128x128 전체 그라디언트 필수 시 고정 크기 처리 또는 쉐이더 대체"}, {"item": "Popup Base 소프트 마스킹 미확인", "risk": "사전 확인 없이 아트 가이드가 소프트 엣지 전제 시 구현 불일치", "recommendation": "스프린트 Day 1에 엔진 마스크 지원 범위 검증 후 아티스트 공유. 미지원 시 디자인 가이드 수정"}, {"item": "PSB 아트 가이드 텍스트 추출 불가", "risk": "스펙 수치 수동 확인 의존으로 오독/누락 시 재작업 발생", "recommendation": "아티스트가 PSB 주요 수치를 텍스트 스펙 시트로 별도 제공 요청. TA가 Atlas 패킹 전 크로스체크"}, {"item": "Reward Icon 공용 참조 전략 미합의", "risk": "개발·아트 불일치 시 중복 에셋 생성, 번들 증가", "recommendation": "단일 에셋 + 런타임 파라미터 방식으로 전략 확정 및 컨벤션 문서화"}, {"item": "Atlas 패킹 크기 초과", "risk": "소형+중형 에셋 혼합 패킹 시 2048x2048 단일 슬롯 초과 가능", "recommendation": "Popup계/Stage계/Icon계 3그룹 분리 패킹. 각 Atlas 2048 이하 유지 시뮬레이션 후 확정"}]}, "meeting": {"date": "2026-04-30", "participants": ["기획 에이전트", "개발 에이전트", "아트 에이전트", "TA 에이전트", "QA 에이전트"], "rounds": [{"round": 1, "agent": "기획 에이전트", "agent_type": "planner", "content": "오늘 회의 목적은 **레이싱 Meta-1 (선착순 100인)** 구현 착수 전 High 리스크 3종 — A-01(소프트 마스킹), A-03(나인패치 그라디언트), A-04(3중 제약 레이아웃) — 의 해소 방향을 확정하는 것입니다. PSB 아트 가이드가 이미지 전용이라 텍스트 스펙을 읽어낼 수 없는 상태이고, 이 세 항목의 AC 수락 기준도 미정입니다. **모든 High 리스크는 개발 착수 전 스펙이 확정되어야** 스프린트 계획이 유효합니다."}, {"round": 1, "agent": "개발 에이전트", "agent_type": "developer", "content": "**첫째, Popup Base 소프트 마스킹**은 엔진 지원 여부 미확인으로 PoC 없이 착수 불가입니다. 미지원 시 RenderTexture 대체 비용이 큽니다. **둘째, Popup Outline 나인패치 그라디언트**는 슬라이스 경계 아티팩트가 필연적으로 발생하므로 아트와 슬라이스 기준을 먼저 정해야 합니다. **셋째, Deco 3중 제약 레이아웃**은 우선순위 규칙 없이는 해상도별 깨짐 케이스가 발생합니다. 오늘 중 소프트 마스킹 PoC 착수 승인을 요청합니다."}, {"round": 1, "agent": "아트 에이전트", "agent_type": "artist", "content": "PSB 가이드 텍스트 추출 불가 문제를 사과드립니다. **오늘 내로 PSB 핵심 수치(여백, 슬라이스 좌표, 컬러 코드)를 텍스트 시트로 재정리해 공유**하겠습니다. 나인패치 그라디언트는 **슬라이스 경계 단색 구간 최소 2px 확보** 방식으로 가이드를 수정하면 아티팩트 리스크를 줄일 수 있습니다. **스펙 확정이 오늘 이뤄지지 않으면 18종 납품 일정이 하루씩 밀릴 수 있음**을 공유합니다."}, {"round": 1, "agent": "TA 에이전트", "agent_type": "ta", "content": "**Atlas 패킹 초과 가능성**을 추가 공유합니다. 신규 18종 합산 시 2048 한도를 넘길 수 있습니다. 아트 가이드 재정리 시 에셋 최대 해상도와 투명 여백 크롭 여부도 명시해 주시면 패킹 시뮬레이션을 바로 진행하겠습니다. **Reward Icon 공용 참조 전략**도 미합의 상태입니다. 소프트 마스킹 PoC는 TA가 엔진 릴리즈 노트를 먼저 확인해 **오늘 오후 3시까지 결과 공유** 드리겠습니다."}, {"round": 1, "agent": "QA 에이전트", "agent_type": "qa", "content": "A-01, A-03, A-04 모두 **검증 기준(AC)이 없어 QA 착수 자체가 불가**한 상태입니다. A-01은 스케일 앵커 수치 미명시로 해상도 회귀 케이스 정의 불가, A-03은 아티팩트 허용 범위 미정, A-04는 3중 제약 충돌 시 우선순위 없어 Pass/Fail 판정 불가입니다. **오늘 회의에서 세 항목 AC 초안 합의**를 강하게 요청드립니다."}, {"round": 2, "agent": "기획 에이전트", "agent_type": "planner", "content": "TA 오후 3시 확인 결과에 따라 A-01 AC를 두 갈래로 준비합니다. **Branch A: 엔진 지원 시 → 소프트 마스킹 직접 적용 / Branch B: 미지원 시 → RenderTexture 대체, 성능 예산 추가 산정.** QA 요청 AC 초안은 오늘 기획이 드래프트 후 개발·QA가 30분 내 검토하는 방식으로 진행하겠습니다. Reward Icon 공용 참조 전략 지금 결정 가능한가요?"}, {"round": 2, "agent": "개발 에이전트", "agent_type": "developer", "content": "Branch 방식 동의합니다. Reward Icon은 **4위치 공용 단일 스프라이트 참조**를 권장합니다. 3중 제약 우선순위는 **'Safe Area > Content > Deco' 순서**를 제안합니다. 이 순서 확정 시 QA AC 작성 및 개발 조건 분기 단순화가 가능합니다."}, {"round": 2, "agent": "아트 에이전트", "agent_type": "artist", "content": "Reward Icon 공용 참조 동의합니다. **위치별 앵커 오프셋 수치를 텍스트 시트에 명시**하겠습니다. 3중 제약 우선순위 'Safe Area > Content > Deco' 아트 의도와 일치합니다. Deco는 장식 요소로 잘려도 기능 영향 없습니다. **나인패치 단색 2px 가이드는 오늘 PSB 재정리 시 함께 반영**하겠습니다."}, {"round": 2, "agent": "TA 에이전트", "agent_type": "ta", "content": "공용 참조 + 오프셋 방식으로 Atlas 시뮬레이션 진행하겠습니다. 현재 **2048 초과 가능성 약 60%**이므로 아트 재정리본 수령 즉시 투명 크롭 + 패킹 테스트 후 오늘 EOD 전 결과 공유하겠습니다. 초과 시 대안: Atlas 분리(UI_Meta_01, UI_Meta_02) 또는 해상도 제한. **소프트 마스킹 확인은 오후 3시까지** 완료 목표입니다."}, {"round": 2, "agent": "QA 에이전트", "agent_type": "qa", "content": "합의 기반 AC 초안 정리합니다. **A-01**: 엔진 지원 시 마스킹 경계 안티앨리어싱 2px 이내, 미지원 시 RenderTexture 프레임 드롭 16ms 이내. **A-03**: 슬라이스 경계 ±1px 이내 색상 오차 없음, 6개 기준 해상도 전수 확인. **A-04**: Safe Area 침범 0px, Deco 클리핑 허용, Content 좌우 여백 기획 수치 ±2px 이내. 기획 드래프트 후 **30분 내 검토 완료** 예정입니다."}], "consensus": [{"priority": "P0", "action": "소프트 마스킹 엔진 지원 여부 확인 (담당: TA) — 오늘 오후 3시까지, Branch A/B 구현 경로 확정"}, {"priority": "P0", "action": "PSB 아트 가이드 → 수치 텍스트 시트 재정리 (담당: 아트) — 오늘 EOD, 나인패치 단색 2px 슬라이스 기준 포함"}, {"priority": "P0", "action": "A-01/A-03/A-04 AC 초안 작성·검토 (담당: 기획 초안 → 개발·QA 30분 내 검토) — 오늘 회의 종료 전"}, {"priority": "P0", "action": "Reward Icon 공용 참조 전략 확정: 단일 스프라이트 + 위치별 앵커 오프셋 (담당: 아트 수치 명시, 개발 구현) — 오늘 EOD"}, {"priority": "P0", "action": "3중 제약 우선순위 확정: Safe Area > Content > Deco (담당: 기획 스펙 문서 반영) — 오늘 EOD"}, {"priority": "P1", "action": "Atlas 패킹 시뮬레이션 및 초과 시 분리 정책 결정 (담당: TA) — 오늘 EOD, 초과 시 UI_Meta_01/02 분리 여부 내일 오전 확정"}, {"priority": "P1", "action": "소프트 마스킹 PoC 구현 (담당: 개발) — TA 확인 결과 수령 후 1일 내 착수"}, {"priority": "P1", "action": "QA 테스트 케이스 작성 (담당: QA) — AC 합의 완료 즉시 착수, 6개 기준 해상도 회귀 케이스 포함"}, {"priority": "P2", "action": "향후 아트 가이드는 텍스트 추출 가능한 포맷(PDF·Figma·Notion) 병행 제출 권고 (담당: 아트·기획 협의)"}]}};
+const D = window.__VDT__;
+
+const VERDICT = {
+  '✅': { cls:'vb-ok',   label:'명확',    stat:'명확'   },
+  '⚠️': { cls:'vb-warn', label:'모호',    stat:'모호'   },
+  '?':  { cls:'vb-unk',  label:'미명시',  stat:'미명시' },
+  '+':  { cls:'vb-add',  label:'추가필요',stat:'추가필요'},
+  '🔴': { cls:'vb-risk', label:'리스크',  stat:'리스크' },
+};
+
+function vbadge(v) {
+  const m = VERDICT[v] || VERDICT['?'];
+  return `<span class="vb ${m.cls}">${v} ${m.label}</span>`;
+}
+
+function stBadge(s) {
+  if (s === 'Done')        return `<span class="st-done">✅ Done</span>`;
+  if (s === 'IN PROGRESS') return `<span class="st-wip">⏳ IN PROGRESS</span>`;
+  return `<span class="st-todo">○ ${s||'TODO'}</span>`;
+}
+
+function renderHeader() {
+  return `
+    <div class="header">
+      <div class="header-row">
+        <div class="header-left">
+          <span class="team-badge">🤖 가상 개발팀</span>
+          <div>
+            <div class="header-title">${D.title} — 기획 문서 리스크 분석</div>
+            <div class="header-ticket">${D.ticket_key}</div>
+          </div>
+        </div>
+        <span class="status-badge">⏳ Director 승인 대기 — ${D.analysis_date} 분석 완료</span>
+      </div>
+    </div>`;
+}
+
+function renderStats() {
+  const s = D.stats || {};
+  const items = [
+    { v:'✅', key:'명확',    cls:'green'  },
+    { v:'⚠️', key:'모호',    cls:'orange' },
+    { v:'?',  key:'미명시',  cls:'gray'   },
+    { v:'+',  key:'추가필요',cls:'blue'   },
+    { v:'🔴', key:'리스크',  cls:'red'    },
+  ];
+  return `<div class="stats-bar">${
+    items.map(i => `
+      <div class="stat">
+        <span style="color:var(--${i.cls})">${i.v}</span>
+        <span class="stat-num" style="color:var(--${i.cls})">${s[i.key]||0}</span>
+        <span style="color:var(--text-muted)">${i.key}</span>
+      </div>`).join('')
+  }</div>`;
+}
+
+function renderTabs() {
+  return `<div class="tabs">
+    <div class="tab active" onclick="switchTab('spec',this)">📋 기획서</div>
+    <div class="tab" onclick="switchTab('dev',this)">🛠 개발 리스크</div>
+    <div class="tab" onclick="switchTab('meeting',this)">💬 회의록</div>
+  </div>`;
+}
+
+function renderSpecLeft() {
+  const sp = D.spec || {};
+  let html = `<div class="spec-title">기획서 요약: ${D.title}</div>`;
+
+  if (sp.purpose) html += `
+    <div class="section">
+      <div class="section-label">목적 &amp; 배경</div>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.7">${sp.purpose}</p>
+    </div>`;
+
+  if ((sp.key_features||[]).length) html += `
+    <div class="section">
+      <div class="section-label">주요 기능</div>
+      <table class="feat-table"><tbody>${
+        sp.key_features.map(f=>`<tr><td>${f.component}</td><td>${f.content}</td></tr>`).join('')
+      }</tbody></table>
+    </div>`;
+
+  if ((sp.subtasks||[]).length) html += `
+    <div class="section">
+      <div class="section-label">서브태스크 현황</div>
+      <table class="sub-table">
+        <thead><tr><th>서브태스크</th><th>담당</th><th>상태</th></tr></thead>
+        <tbody>${sp.subtasks.map(t=>`<tr><td>${t.key}</td><td>${t.owner}</td><td>${stBadge(t.status)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  if ((sp.incomplete_areas||[]).length) html += `
+    <div class="section">
+      <div class="section-label">⚠️ 미완성 영역</div>
+      ${sp.incomplete_areas.map(a => {
+        const author = typeof a === 'object' ? a.author : '';
+        const text   = typeof a === 'object' ? a.comment : a;
+        return `<div class="warn-card">${author?`<div class="warn-author">${author} 코멘트</div>`:''}<div class="warn-text">${text}</div></div>`;
+      }).join('')}
+    </div>`;
+
+  if ((sp.ui_ux_changes||[]).length) html += `
+    <div class="section">
+      <div class="section-label">UI/UX 변경사항</div>
+      <ul class="bul">${sp.ui_ux_changes.map(u=>`<li>${typeof u==='object'?(u.content||u.description||u.change||JSON.stringify(u)):u}</li>`).join('')}</ul>
+    </div>`;
+
+  if ((sp.edge_cases||[]).length) html += `
+    <div class="section">
+      <div class="section-label">예외/엣지케이스 (기획서 명시분)</div>
+      <ul class="bul">${sp.edge_cases.map(e=>`<li>${typeof e==='object'?(e.content||e.description||e.case||JSON.stringify(e)):e}</li>`).join('')}</ul>
+    </div>`;
+
+  return html;
+}
+
+function renderRightPanel() {
+  const items   = D.ac_items || [];
+  const dev     = D.developer || {};
+  const order   = dev.impl_order || [];
+  const risks   = dev.impl_risks || [];
+
+  // ── 통계 실시간 재계산 (stats 바와 일치 보장) ──
+  const realStats = {'명확':0,'모호':0,'미명시':0,'추가필요':0,'리스크':0};
+  const lmap = {'✅':'명확','⚠️':'모호','?':'미명시','+':'추가필요','🔴':'리스크'};
+  items.forEach(ac => { const k = lmap[ac.verdict||'?']; if(k) realStats[k]++; });
+  const total = items.length;
+
+  // ── AC 판정 통계 배지 ──
+  const statBadges = Object.entries(realStats)
+    .filter(([,n]) => n > 0)
+    .map(([k,n]) => {
+      const icon = Object.entries(lmap).find(([,v])=>v===k)?.[0] || '?';
+      const vcls = VERDICT[icon]?.cls || 'vb-unk';
+      return `<span class="vb ${vcls}" style="margin-right:4px">${icon} ${k} ${n}</span>`;
+    }).join('');
+
+  // ── AC 테이블 ──
+  const acRows = items.map(ac => `
+    <tr>
+      <td class="ac-id">${ac.id||''}</td>
+      <td>${ac.content||''}</td>
+      <td>${vbadge(ac.verdict||'?')}</td>
+      <td style="color:var(--text-muted)">${ac.evidence||'—'}</td>
+      <td style="color:var(--text-muted);font-style:italic">${ac.assumption||'—'}</td>
+    </tr>`).join('');
+
+  // ── 개발팀 권고사항 (impl_order) ──
+  let devSection = '';
+  if (order.length || risks.length) {
+    const orderItems = order.map((o, i) => `
+      <li>
+        <span class="rec-num">${i+1}</span>
+        <span>${o}</span>
+      </li>`).join('');
+
+    const riskItems = risks.filter(r => r.complexity === 'High').map(r => `
+      <div class="rec-risk-row">
+        <span class="cx-high">🔴 High</span>
+        <span style="font-weight:600;margin: 0 6px">${r.feature}</span>
+        <span style="color:var(--text-muted)">— ${r.risk}</span>
+      </div>`).join('');
+
+    devSection = `
+      <div class="right-section" style="margin-top:20px">
+        <div class="right-section-title">🛠 개발팀 권고사항</div>
+        ${order.length ? `<ol class="rec-list">${orderItems}</ol>` : ''}
+        ${riskItems ? `<div class="rec-risks" style="margin-top:10px">${riskItems}</div>` : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="right-section-title" style="margin-bottom:6px">
+      AC별 판정 테이블 <span style="color:var(--text-muted);font-weight:400">(${total}건)</span>
+    </div>
+    <div style="margin-bottom:10px">${statBadges}</div>
+    <table class="ac-table">
+      <thead><tr>
+        <th style="width:56px">AC#</th>
+        <th>내용</th>
+        <th style="width:86px">판정</th>
+        <th style="width:26%">근거</th>
+        <th style="width:22%">가정/추론</th>
+      </tr></thead>
+      <tbody>${acRows}</tbody>
+    </table>
+    ${devSection}`;
+}
+
+function ctClass(type, isRisky) {
+  const t = (type||'').trim();
+  if (isRisky)           return 'ct-risky ct-cmod';
+  if (t === '신규')      return 'ct-new';
+  if (t === '수정')      return 'ct-mod';
+  if (t === '공용 수정') return 'ct-cmod';
+  if (t === '완료')      return 'ct-done';
+  if (t === '삭제')      return 'ct-del';
+  return 'ct-mod';
+}
+function cxClass(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return 'cx-high';
+  if (v === 'med')  return 'cx-med';
+  return 'cx-low';
+}
+function cxIcon(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return '🔴';
+  if (v === 'med')  return '🟠';
+  return '🟢';
+}
+
+function renderDevPanel() {
+  const dev = D.developer || {};
+  const impact   = dev.impact_scope  || D.impact_scope  || [];
+  const implRisk = dev.impl_risks    || D.impl_risks     || [];
+  const order    = dev.impl_order    || D.impl_order     || [];
+  const notes    = dev.tech_notes    || D.tech_notes     || [];
+  const title    = D.title || '';
+
+  let html = `<h2 style="font-size:18px;font-weight:700;margin-bottom:22px">개발 리스크 분석: ${title}</h2>`;
+
+  // 영향 범위 분석
+  if (impact.length) {
+    const rows = impact.map(i => `
+      <tr>
+        <td>${i.module||''}</td>
+        <td class="${ctClass(i.change_type, i.is_risky)}">${i.is_risky?'⚠️ ':''}${i.change_type||''}</td>
+        <td style="color:var(--text-muted)">${i.detail||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">영향 범위 분석</div>
+        <table class="impact-table">
+          <thead><tr><th style="width:220px">모듈/영역</th><th style="width:120px">변경 유형</th><th>상세</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 리스크 테이블
+  if (implRisk.length) {
+    const rows = implRisk.map(r => `
+      <tr>
+        <td>${r.feature||''}</td>
+        <td class="${cxClass(r.complexity)}">${cxIcon(r.complexity)} ${r.complexity||''}</td>
+        <td style="color:var(--text-muted)">${r.risk||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 리스크 테이블</div>
+        <table class="impl-table">
+          <thead><tr><th>기능</th><th style="width:100px">복잡도</th><th>리스크</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 순서 권고
+  if (order.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 순서 권고</div>
+        <ol class="impl-order">${order.map(o=>`<li>${typeof o==='object'?(o.content||o.step||o.description||JSON.stringify(o)):o}</li>`).join('')}</ol>
+      </div>`;
+  }
+
+  // 기술 리스크 & 주의사항
+  if (notes.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">기술 리스크 &amp; 주의사항</div>
+        <ul class="tech-notes">${notes.map(n=>`<li>${typeof n==='object'?(n.content||n.note||n.description||JSON.stringify(n)):n}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  if (!impact.length && !implRisk.length && !order.length && !notes.length) {
+    html += `<div style="color:var(--text-muted);font-size:13px">개발 리스크 항목이 없습니다.</div>`;
+  }
+
+  return html;
+}
+
+function render() {
+  document.getElementById('app').innerHTML = `
+    ${renderHeader()}
+    ${renderStats()}
+    ${renderTabs()}
+    <div class="content">
+      <div class="tab-panel active" id="tab-spec">
+        <div class="left-panel">${renderSpecLeft()}</div>
+        <div class="right-panel">${renderRightPanel()}</div>
+      </div>
+      <div class="tab-panel" id="tab-dev" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderDevPanel()}
+      </div>
+      <div class="tab-panel" id="tab-meeting" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderMeeting()}
+      </div>
+    </div>`;
+}
+
+function boldify(text) {
+  return (text||'').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+const AGENT_COLOR = {
+  planner:   'var(--accent)',
+  developer: 'var(--orange)',
+  qa:        'var(--green)',
+  ta:        'var(--blue)',
+};
+
+function renderMeeting() {
+  const m = D.meeting;
+  if (!m || (!m.rounds && !m.consensus)) {
+    return `<div class="empty-panel">회의록이 없습니다.</div>`;
+  }
+
+  let html = `
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:6px">
+      회의록: ${D.ticket_key} ${D.title} 분석
+    </h2>
+    <div class="meeting-meta">
+      일시: ${m.date||D.analysis_date} | 참가자: ${(m.participants||[]).join(', ')}
+    </div>
+    <div class="meeting-sys">[SYS] 회의 시작</div>
+  `;
+
+  let lastRound = 0;
+  for (const r of (m.rounds||[])) {
+    if (r.round > lastRound && lastRound > 0) {
+      html += `<div class="meeting-sys">[SYS] Round ${r.round} 시작</div>`;
+    }
+    lastRound = r.round;
+    const color = AGENT_COLOR[r.agent_type] || 'var(--accent)';
+    html += `
+      <div class="meeting-block">
+        <div class="meeting-agent" style="color:${color}">Round ${r.round} — ${r.agent}</div>
+        <div class="meeting-content">${boldify(r.content)}</div>
+      </div>`;
+  }
+
+  if ((m.consensus||[]).length) {
+    html += `<div class="meeting-sys">[SYS] 합의 도출</div>
+    <ul class="consensus-list">
+      ${m.consensus.map(c => {
+        const p = (c.priority||'P1');
+        const cls = p === 'P0' ? 'cp0' : p === 'P1' ? 'cp1' : 'cp2';
+        return `<li><span class="cprio ${cls}">${p}</span><span>${boldify(c.action)}</span></li>`;
+      }).join('')}
+    </ul>`;
+  }
+
+  return html;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  const panel = document.getElementById('tab-' + name);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'flex'; }
+}
+
+render();
+</script>
+</body>
+</html>
