@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VDT Report</title>
+  <style>
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1c2128;
+      --border: #30363d; --text: #e6edf3; --text-muted: #7d8590;
+      --accent: #4f6ef7;
+      --green: #3fb950; --green-bg: rgba(63,185,80,.12);
+      --orange: #d29922; --orange-bg: rgba(210,153,34,.12);
+      --red: #f85149; --red-bg: rgba(248,81,73,.12);
+      --blue: #58a6ff; --blue-bg: rgba(88,166,255,.12);
+      --gray: #7d8590; --gray-bg: rgba(125,133,144,.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system,'Pretendard',sans-serif; font-size:13px; line-height:1.6; overflow:hidden; }
+
+    /* ── Header ── */
+    .header { background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 12px 20px; }
+    .header-row { display:flex; justify-content:space-between; align-items:center; }
+    .header-left { display:flex; align-items:center; gap:10px; }
+    .team-badge { font-size:11px; background: rgba(79,110,247,.2); color: var(--accent); padding: 2px 8px; border-radius:10px; font-weight:600; }
+    .header-title { font-size:14px; font-weight:700; }
+    .header-ticket { font-size:11px; color: var(--text-muted); margin-top:2px; }
+    .status-badge { font-size:11px; color: var(--orange); background: var(--orange-bg); padding: 3px 10px; border-radius:10px; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display:flex; gap:20px; padding: 8px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+    .stat { display:flex; align-items:center; gap:5px; font-size:12px; cursor:default; }
+    .stat-num { font-weight:700; font-size:13px; }
+
+    /* ── Tabs ── */
+    .tabs { display:flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 20px; }
+    .tab { padding: 9px 14px; font-size:12px; cursor:pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: color .15s; user-select:none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Layout ── */
+    .content { display:flex; height: calc(100vh - 105px); }
+    .tab-panel { display:none; width:100%; }
+    .tab-panel.active { display:flex; }
+
+    /* ── Left panel ── */
+    .left-panel { width:36%; overflow-y:auto; border-right:1px solid var(--border); padding:18px; flex-shrink:0; }
+    .spec-title { font-size:16px; font-weight:700; margin-bottom:16px; line-height:1.4; }
+    .section { margin-bottom:18px; }
+    .section-label { font-size:10px; font-weight:700; color: var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+
+    /* Feature table */
+    .feat-table { width:100%; border-collapse:collapse; }
+    .feat-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .feat-table td:first-child { color: var(--text-muted); width:32%; background: var(--bg-card); white-space:nowrap; }
+
+    /* Subtask table */
+    .sub-table { width:100%; border-collapse:collapse; }
+    .sub-table th { font-size:11px; text-align:left; padding:5px 8px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .sub-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .st-done { color: var(--green); } .st-wip { color: var(--blue); } .st-todo { color: var(--gray); }
+
+    /* Warning */
+    .warn-card { background: rgba(210,153,34,.07); border-left:3px solid var(--orange); padding:8px 10px; margin-bottom:6px; border-radius:0 4px 4px 0; }
+    .warn-author { font-size:11px; color: var(--orange); margin-bottom:3px; }
+    .warn-text { font-size:12px; }
+
+    /* Bullet */
+    .bul { list-style:none; }
+    .bul li { padding:3px 0 3px 14px; font-size:12px; position:relative; }
+    .bul li::before { content:'•'; position:absolute; left:0; color: var(--text-muted); }
+
+    /* ── Right panel ── */
+    .right-panel { flex:1; overflow-y:auto; padding:18px; }
+    .panel-title { font-size:13px; font-weight:600; margin-bottom:12px; }
+
+    /* AC Table */
+    .ac-table { width:100%; border-collapse:collapse; }
+    .ac-table th { font-size:11px; text-align:left; padding:7px 9px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); position:sticky; top:0; z-index:1; }
+    .ac-table td { padding:7px 9px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .ac-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ac-id { font-family:monospace; font-size:11px; color: var(--text-muted); white-space:nowrap; }
+
+    /* Verdict badges */
+    .vb { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .vb-ok   { background: var(--green-bg);  color: var(--green);  }
+    .vb-warn { background: var(--orange-bg); color: var(--orange); }
+    .vb-unk  { background: var(--gray-bg);   color: var(--gray);   }
+    .vb-add  { background: var(--blue-bg);   color: var(--blue);   }
+    .vb-risk { background: var(--red-bg);    color: var(--red);    }
+
+    /* Right panel sections */
+    .right-section { margin-bottom: 20px; }
+    .right-section-title { font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:10px; }
+    .rec-list { padding-left:0; list-style:none; margin:0; display:flex; flex-direction:column; gap:6px; }
+    .rec-list li { display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); line-height:1.5; }
+    .rec-num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .rec-risk-row { display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .rec-risk-row:last-child { border-bottom:none; }
+
+    /* Dev panel */
+    .dev-section { margin-bottom:28px; }
+    .dev-section-title { font-size:14px; font-weight:700; color: var(--accent); margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+    /* Impact scope table */
+    .impact-table { width:100%; border-collapse:collapse; }
+    .impact-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impact-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impact-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ct-new  { color: var(--blue); }
+    .ct-mod  { color: var(--text-muted); }
+    .ct-cmod { color: var(--orange); }
+    .ct-done { color: var(--green); }
+    .ct-del  { color: var(--red); }
+    .ct-risky::before { content:'⚠️ '; }
+
+    /* Impl risk table */
+    .impl-table { width:100%; border-collapse:collapse; }
+    .impl-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impl-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impl-table tr:hover td { background: rgba(255,255,255,.018); }
+    .cx-high { color: var(--red); font-weight:600; }
+    .cx-med  { color: var(--orange); font-weight:600; }
+    .cx-low  { color: var(--green); font-weight:600; }
+
+    /* Impl order list */
+    .impl-order { list-style:none; counter-reset:order; }
+    .impl-order li { counter-increment:order; padding:6px 0 6px 28px; font-size:12px; position:relative; border-bottom:1px solid rgba(48,54,61,.6); }
+    .impl-order li:last-child { border-bottom:none; }
+    .impl-order li::before { content:counter(order); position:absolute; left:0; top:7px; width:18px; height:18px; background: var(--accent); color:#fff; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; text-align:center; }
+
+    /* Tech notes */
+    .tech-notes { list-style:none; }
+    .tech-notes li { padding:5px 0 5px 16px; font-size:12px; color: var(--text-muted); position:relative; border-bottom:1px solid rgba(48,54,61,.4); }
+    .tech-notes li:last-child { border-bottom:none; }
+    .tech-notes li::before { content:'•'; position:absolute; left:0; color: var(--accent); font-size:14px; line-height:1.4; }
+
+    /* ── Meeting ── */
+    .meeting-meta { font-size:12px; color: var(--text-muted); margin-bottom:24px; }
+    .meeting-sys {
+      font-size:11px; font-weight:700; color: var(--text-muted);
+      letter-spacing:.6px; padding:10px 0 8px;
+      border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+      margin: 20px 0 16px;
+    }
+    .meeting-sys:first-of-type { margin-top:0; border-top:none; }
+    .meeting-block { margin-bottom:22px; }
+    .meeting-agent { font-size:14px; font-weight:700; margin-bottom:8px; }
+    .meeting-content { font-size:13px; line-height:1.8; color: var(--text-muted); }
+    .meeting-content strong { color: var(--text); }
+    .consensus-list { list-style:none; margin-top:4px; }
+    .consensus-list li {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:8px 0; font-size:13px; line-height:1.6;
+      border-bottom:1px solid rgba(48,54,61,.5);
+    }
+    .consensus-list li:last-child { border-bottom:none; }
+    .cprio { font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; margin-top:2px; flex-shrink:0; }
+    .cp0 { background: var(--red-bg);    color: var(--red); }
+    .cp1 { background: var(--orange-bg); color: var(--orange); }
+    .cp2 { background: var(--green-bg);  color: var(--green); }
+
+    /* Meeting placeholder */
+    .empty-panel { width:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:13px; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+window.__VDT__ = {"ticket_key": "CVS-12603", "title": "Seasonal Spine DLC IAM", "analysis_date": "2026-05-06", "status": "Director 승인 대기", "stats": {"착수가능": 0, "확인필요": 1, "착수불가": 1}, "spec": {"purpose": "DLC 컨텐츠를 이용한 시즈널 상점 타입 제작. 내부 스파인 리소스 사용.", "key_features": [{"component": "시즈널 상점", "content": "DLC 컨텐츠를 이용한 시즈널 상점 타입 제작"}, {"component": "스파인 리소스", "content": "내부 스파인 리소스 사용"}, {"component": "샘플 시안", "content": "주제: 4월 Easter day"}, {"component": "프로모션 이미지", "content": "나노바나나 프로모션 이미지 제작"}, {"component": "스파인화", "content": "개별 이미지 출력 후 스파인화"}], "subtasks": [{"key": "CVS-13197", "owner": "jihyeon.kim", "status": "TODO"}], "incomplete_areas": [{"author": "", "comment": "프로토타입 기획내용으로 상세 스펙 미정"}], "ui_ux_changes": [], "edge_cases": []}, "ac_items": [{"id": "A-01", "category": "A", "category_name": "애니메이션/아트", "content": "나노바나나 프로모션 이미지 제작", "source": "기획서 원문", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "이미지 제작 범위(컷 수, 사이즈, 포맷, 용도별 변형 여부)가 명시되지 않음. 노출 지면 불분명.", "missing_info": "이미지 규격, 필요 컷 수, 노출 지면 및 UI 레이아웃 위치, 시즈널 기간, 브랜드 가이드 유무", "question": "프로모션 이미지는 몇 컷이며 각 지면별 규격은 무엇인가요? 기존 레퍼런스 또는 아트 가이드가 있나요?", "qa_prediction": "규격·컷 수 미확정 상태에서 제작 착수 시 납품 후 사이즈 재작업 또는 포즈 추가 요청 발생 가능성 높음."}, {"id": "A-02", "category": "A", "category_name": "애니메이션/아트", "content": "개별 이미지 출력 후 스파인화", "source": "기획서 원문", "verdict": "🔴", "verdict_label": "착수불가", "ambiguity": "스파인화의 본 구조, 레이어 분리 기준, 애니메이션 키프레임 목록, 메시 사용 여부 등 기술 스펙 전무.", "missing_info": "A-01 이미지 확정(선행 조건), 스파인 버전, 본 계층 구조, 필요 애니메이션 목록 및 재생시간/루프 여부, DLC 패키징 경로 및 폴백 처리 방침", "question": "스파인 리그의 본 구조·레이어 분리 기준·애니메이션 목록이 사전 합의된 문서가 있나요? DLC 미다운로드 상태의 폴백 정책은?", "qa_prediction": "스펙 없이 착수 시 리그 구조 전면 재작업 및 DLC 경로 통합 런타임 오류 위험. A-01 완료 + 스파인 스펙 문서 확정 후 착수 필수."}], "developer": {"impact_scope": [{"module": "시즈널 상점 (Seasonal Shop)", "change_type": "신규", "is_risky": true, "detail": "DLC 컨텐츠 기반 신규 상점 타입 추가. 기존 상점 시스템과의 인터페이스 호환성 미검증 상태."}, {"module": "스파인 런타임 / 리소스 로더", "change_type": "수정", "is_risky": true, "detail": "내부 스파인 리소스를 신규 DLC 경로에서 로드하는 로직 추가. 비DLC 환경에서의 fallback 처리 누락 시 크래시 위험."}, {"module": "IAM 프레임워크", "change_type": "수정", "is_risky": true, "detail": "시즈널 IAM 타입 신규 등록 필요. 기존 IAM 타입과 동시 노출 시 레이어 순서 및 팝업 중복 방지 로직 재검토 필요."}, {"module": "DLC 번들 / 에셋 패키징", "change_type": "신규", "is_risky": true, "detail": "스파인 에셋을 DLC 번들에 포함. DLC 미다운로드 상태에서 상점 진입 시 에셋 누락 예외처리 필수."}, {"module": "나노바나나 프로모션 이미지", "change_type": "신규", "is_risky": false, "detail": "독립적 이미지 에셋 제작 작업. 타 시스템 의존성 낮음."}], "impl_risks": [{"feature": "DLC 기반 시즈널 상점 타입 신규 구현", "complexity": "High", "risk": "상세 스펙 미정 상태에서 개발 착수 시 스펙 확정 후 대규모 리팩토링 비용 발생."}, {"feature": "스파인 에셋 DLC 경로 통합", "complexity": "High", "risk": "DLC 다운로드 완료 여부에 따른 비동기 로딩 처리 필요. 로딩 실패·부분 다운로드 상태에서의 graceful degradation 미구현 시 런타임 오류 위험."}, {"feature": "개별 이미지 → 스파인화 파이프라인", "complexity": "Med", "risk": "스파인화 작업은 아트-개발 간 협업 의존도가 높음. 레이어 분리 기준·본 구조·애니메이션 키프레임 스펙이 사전 합의되지 않으면 통합 단계에서 재작업 루프 발생."}, {"feature": "IAM 시즈널 타입 스케줄링 연동", "complexity": "Med", "risk": "Easter Day 시즈널 노출 기간 로직을 하드코딩 처리할 경우 재사용성 저하. 서버/클라이언트 시간 기준 불일치 처리 누락 시 노출 오작동."}], "impl_order": ["1순위: 상세 스펙 확정 — 프로토타입 단계이므로 DLC 언락 조건·노출 기간·상점 데이터 스키마 확정이 선행 조건", "2순위: DLC 에셋 번들 구조 및 스파인 로딩 파이프라인 설계 — 상점 UI·IAM 연동의 전제 조건", "3순위: 나노바나나 이미지 제작 및 스파인화 — 스펙 확정·파이프라인 구축과 병행", "4순위: 시즈널 상점 타입 및 IAM 연동 구현 — 에셋·스펙 확정 이후 착수"], "tech_notes": ["상세 스펙 미정 상태에서 DLC 데이터 스키마를 조기 확정하지 않으면 전 구현 레이어에서 연쇄 리팩토링 발생", "DLC 미다운로드 상태의 스파인 에셋 접근에 대한 예외처리(fallback UI 또는 진입 차단)를 반드시 명세하고 구현해야 프로덕션 크래시를 방지할 수 있다", "Easter Day 시즈널 노출 기간은 하드코딩 대신 서버 설정 기반 동적 제어 구조로 설계해야 향후 재사용성을 확보할 수 있다"]}, "artist": {"ui_ux_flow": ["로비 화면 → (시즈널 배너 탭) → 시즈널 상점 진입 화면", "시즌 상점 진입 화면 → (스파인 프로모션 연출 재생) → 상점 메인 화면", "상점 메인 화면 → (닫기 버튼) → 로비 화면"], "assets": {"images": [{"name": "img_seasonal_shop_bg_easter", "usage": "Easter 시즈널 상점 배경 이미지", "size": "1920x1080", "is_new": true}, {"name": "img_nano_banana_promo_easter", "usage": "나노바나나 프로모션 이미지 — Easter 테마", "size": "800x800", "is_new": true}, {"name": "img_seasonal_shop_banner_easter", "usage": "로비 진입 배너 / IAM 썸네일", "size": "640x320", "is_new": true}, {"name": "img_btn_purchase_easter", "usage": "구매 버튼 — Easter 컬러 테마", "size": "320x96", "is_new": true}, {"name": "img_dlc_item_icon_set_easter", "usage": "DLC 개별 아이템 아이콘 (3~6종)", "size": "128x128", "is_new": true}], "animations": [{"name": "spine_nano_banana_easter_idle", "type": "Spine 2D 스켈레탈 — idle 루프", "trigger": "상점 메인 화면 진입 시 자동 재생"}, {"name": "spine_nano_banana_easter_action", "type": "Spine 2D 스켈레탈 — 강조 액션", "trigger": "구매 버튼 탭 시 1회 재생 후 idle 복귀"}, {"name": "spine_nano_banana_easter_enter", "type": "Spine 2D 스켈레탈 — 등장 연출", "trigger": "상점 화면 최초 진입 시 1회 재생"}], "effects": [{"name": "fx_easter_confetti_burst", "trigger": "구매 완료 확인 직후", "note": "파스텔 색상 컨페티 파티클 (0.8s)"}, {"name": "fx_shop_open_shimmer", "trigger": "시즈널 상점 배너 → 상점 화면 전환", "note": "봄/이스터 테마 반짝임 전환 효과 (0.5s)"}], "fonts": ["기존 프로젝트 공용 UI 폰트 재사용", "가격/강조 수치: 기존 숫자 전용 폰트 재사용"]}, "design_guidelines": ["컬러 팔레트: Easter 테마 — 파스텔 핑크·연보라·민트·노랑 기반", "스파인 리소스는 기존 나노바나나 스켈레톤 기반 Easter 전용 슬롯 교체 방식", "프로모션 이미지는 개별 레이어 PNG 출력 후 스파인화 순서로 진행", "모든 신규 이미지는 2x 해상도 PNG 납품 원칙", "스파인 애니메이션 FPS: 30fps, 텍스처 아틀라스 2048x2048 이내"], "total_asset_days": 6, "asset_summary": "Easter 테마 신규 이미지 5종 + 스파인 애니메이션 3종(기존 리그 기반) + 이펙트 2종, 총 약 6 man-days 규모."}, "ta": {"asset_specs": [{"name": "img_nano_banana_promo_easter", "format": "PNG", "resolution": "800x800", "atlas": "N", "memory_est": "~2500KB"}, {"name": "img_seasonal_shop_bg_easter", "format": "PNG", "resolution": "1920x1080", "atlas": "N", "memory_est": "~8000KB"}, {"name": "img_dlc_item_icon_set_easter", "format": "PNG", "resolution": "128x128 (세트)", "atlas": "Y", "memory_est": "~1024KB"}, {"name": "spine_nano_banana_easter (통합 아틀라스)", "format": "PNG + .atlas + .skel", "resolution": "2048x2048 이내", "atlas": "Y", "memory_est": "~4096KB (ASTC 압축 시 ~1024KB)"}], "effect_specs": [{"name": "fx_easter_confetti_burst", "impl_method": "파티클 시스템 (CPU 파티클), 파스텔 색상 스프라이트 텍스처 시트", "perf_note": "동시 파티클 수 100개 이하 cap 필수. 저사양 기기 LOD 분기 권장."}, {"name": "fx_shop_open_shimmer", "impl_method": "셰이더 기반 UV 스크롤 shimmer 오버레이 또는 알파 페이드 시퀀스", "perf_note": "이펙트 적용 범위를 상점 패널 영역으로 클리핑. OpenGL ES 2.0 이상 호환 확인."}], "pipeline_impact": {"build_changed": true, "import_changes": ["DLC 번들에 스파인 .skel/.json + .atlas + 텍스처 PNG 포함", "img_dlc_item_icon_set_easter 아이콘 세트 스프라이트 아틀라스 패킹 설정 신규 추가", "베이스 스켈레톤은 메인 번들, Easter 전용 슬롯 아틀라스는 DLC 번들로 분리", "Spine Runtime 버전 명시 및 내보내기 설정 문서화"], "bundle_note": "DLC 번들 추가 예상 용량 ~21MB (비압축). ASTC/ETC2 적용 시 ~10MB 이내 달성 가능."}, "performance_notes": [{"item": "스파인 아틀라스 메모리", "impact": "3개 애니메이션 별도 아틀라스 시 최대 12MB VRAM", "mitigation": "단일 2048x2048 아틀라스로 통합 패킹. ASTC 4x4 압축 적용."}, {"item": "배경 이미지 메모리", "impact": "1920x1080 RGBA32 비압축 ~8MB", "mitigation": "ETC2/ASTC 6x6 압축 적용으로 ~1.5MB 절감."}, {"item": "파티클+스파인 동시 재생", "impact": "상점 오픈 연출 시 CPU/GPU 스파이크", "mitigation": "연출 타임라인 분산 (enter 후 0.2s 딜레이). 저사양 기기 shimmer 생략 분기."}], "ta_risks": [{"item": "기존 나노바나나 스켈레톤 슬롯 구조 미확정", "risk": "베이스 스켈레톤이 Easter DLC 교체 방식을 지원하지 않을 경우 재작업 발생", "recommendation": "착수 전 기존 .skel 파일의 슬롯·스킨 구조 확인 및 Easter 교체 대상 슬롯 목록 3자 합의"}, {"item": "DLC 미다운로드 상태 스파인 에셋 접근", "risk": "DLC 번들 로드 전 참조 시 NullReference 또는 런타임 크래시", "recommendation": "스파인 에셋 로드 시점에 DLC 다운로드 상태 체크 및 fallback 처리 개발 스펙에 명시"}, {"item": "스파인 아틀라스 패킹 기준 미합의", "risk": "별도 아틀라스 관리 시 메모리 낭비 및 빌드 용량 초과", "recommendation": "TA 사전 추산 후 1장 통합 가능 여부 검증, 아틀라스 분리 기준 가이드라인 문서 배포"}, {"item": "Spine Runtime 버전 불일치", "risk": "Editor 버전과 Runtime 버전 불일치 시 임포트 오류 발생", "recommendation": "프로젝트 Spine Runtime 버전 확인 후 아트팀에 필수 Editor 버전 공지 및 고정"}]}, "critical_questions": [{"priority": "P0", "related_ids": ["A-01", "A-02"], "question": "A-01 프로모션 이미지의 컷 수·규격·노출 지면이 확정되지 않으면 A-02 스파인화 착수 자체가 불가합니다. 이미지 스펙 확정 일정은 언제인가요?", "impact": "양 AC 모두 블로킹. 스펙 미확정 시 아트 리소스 전체 재작업 비용 발생."}, {"priority": "P0", "related_ids": ["A-02"], "question": "스파인 리그의 본 구조, 레이어 분리 기준, 필수 애니메이션 목록을 정의한 기술 스펙 문서가 존재하나요? 없다면 누가 언제까지 제공하나요?", "impact": "스파인화 착수 불가 상태. 스펙 없이 진행 시 본 구조 전면 재리그 및 DLC 통합 런타임 오류 리스크."}, {"priority": "P1", "related_ids": ["A-02"], "question": "DLC 미다운로드 상태에서의 폴백 처리 방침(정적 이미지 대체, 노출 숨김 등)이 결정되어 있나요?", "impact": "미결 시 DLC graceful degradation 미구현으로 런타임 오류 발생 가능."}, {"priority": "P1", "related_ids": ["A-01"], "question": "나노바나나 프로모션의 시즈널 노출 기간 및 IAM 노출 조건이 확정되어 있나요?", "impact": "기간·조건 미확정 시 아트 제작 우선순위 및 QA 일정 산정 불가."}], "meeting": {"date": "2026-05-06", "participants": ["기획 에이전트", "개발 에이전트", "아트 에이전트", "TA 에이전트", "QA 에이전트"], "rounds": [{"round": 1, "agent": "기획 에이전트", "agent_type": "planner", "content": "현황을 솔직하게 공유합니다. Seasonal Spine DLC IAM은 **프로토타입 기획 단계**이며 상세 스펙이 확정되지 않은 상태입니다. A-02 항목—스파인 본 구조, 레이어 분리 기준, 애니메이션 목록, DLC 폴백 정책—이 모두 미정입니다. **이번 회의의 목표는 착수 가능 조건을 명확히 정의하고, 기획이 무엇을 언제까지 제공해야 하는지 합의하는 것**입니다. 기획 측에서는 이번 주 내로 스파인 애니메이션 목록 초안과 DLC 폴백 정책 방향을 제시할 수 있습니다."}, {"round": 1, "agent": "개발 에이전트", "agent_type": "developer", "content": "스펙 미확정 상태로 착수할 경우 **가장 큰 위험은 시즈널 상점 타입 신규 구현**입니다. 스펙 없이 구현을 시작하면 이후 대규모 리팩토링이 불가피합니다. **DLC 미다운로드 상태에서 스파인 에셋 접근 시 런타임 오류**가 발생할 수 있는데, graceful degradation 처리 방침이 없으면 구현 불가입니다. 지금 당장 할 수 있는 것은 DLC 폴백 처리 인터페이스 설계와 IAM 스케줄링 연동 방식 검토 정도입니다."}, {"round": 1, "agent": "아트 에이전트", "agent_type": "artist", "content": "Easter 테마 신규 이미지 5종과 이펙트 2종은 **스펙과 무관하게 병렬로 착수 가능**합니다. 그러나 **스파인 애니메이션 3종은 본 구조와 레이어 분리 기준이 확정되지 않으면 착수할 수 없습니다.** 아트 측 요청: TA로부터 현재 나노바나나 스켈레톤 슬롯 구조 문서 제공, 기획으로부터 애니메이션 목록을 이번 주 내로 수령. 이 두 가지가 충족되면 스파인 작업 착수까지 약 0.5 man-day 준비 기간만 필요합니다."}, {"round": 1, "agent": "TA 에이전트", "agent_type": "ta", "content": "**현재 슬롯 구조는 내부적으로는 파악되어 있으나 공식 문서화된 상태가 아닙니다.** 이것이 A-02 리스크의 근본 원인 중 하나입니다. 이번 주 내로 슬롯 구조 스냅샷 문서를 작성하여 공유할 수 있습니다. 추가로 **Spine Runtime 버전 불일치 문제**는 반드시 사전에 검증해야 합니다. 현재 프로젝트 Spine Runtime 버전과 아트가 사용하는 Spine 에디터 버전 일치 여부를 지금 당장 확인이 필요합니다."}, {"round": 1, "agent": "QA 에이전트", "agent_type": "qa", "content": "**현재 A-02는 착수불가 판정입니다.** 이유는 세 가지입니다: 본 구조·레이어 분리 기준 부재로 검증 기준 수립 불가, DLC 패키징 경로와 폴백 처리 방침 없어 테스트 시나리오 작성 불가, 애니메이션 목록 없어 완성도 판단 기준 없음. QA 착수 최소 조건: **애니메이션 목록 + DLC 폴백 정책 + 슬롯 구조 문서** 세 가지 선행 필수. **스파인 관련 QA는 해당 문서 확정 이후로 게이팅을 걸 것을 공식 권고합니다.**"}, {"round": 2, "agent": "기획 에이전트", "agent_type": "planner", "content": "모든 팀의 발언을 수렴합니다. **기획은 2026-05-08까지 다음 세 가지를 확정 배포합니다: (1) 스파인 애니메이션 목록 v1.0, (2) DLC 폴백 정책 방향, (3) 시즈널 기간 정의 방식(하드코딩 금지 원칙 명시).** 이 세 가지가 배포되기 전까지 스파인 애니메이션 제작과 DLC 경로 통합 구현은 공식 블로킹 상태로 관리합니다."}, {"round": 2, "agent": "개발 에이전트", "agent_type": "developer", "content": "기획 에이전트의 제안을 수용합니다. 블로킹 해제 전 **병렬 진행 가능 작업**: IAM 스케줄링 추상화 레이어 설계, DLC 폴백 처리 인터페이스 선설계, TA와 함께 Spine Runtime 버전 즉시 검증(오늘 내). **스파인 DLC 경로 통합과 시즈널 상점 타입 신규 구현은 기획 스펙 + TA 슬롯 문서 + DLC 폴백 정책 확정 후 착수**로 공식화합니다."}], "consensus": [{"priority": "P0", "action": "[기획] 2026-05-08까지 스파인 애니메이션 목록 v1.0, DLC 폴백 정책, 시즈널 기간 정의 방식 확정 배포"}, {"priority": "P0", "action": "[TA + 개발] 오늘(2026-05-06) Spine Runtime 버전 불일치 여부 즉시 검증 및 결과 공유"}, {"priority": "P0", "action": "[TA] 2026-05-08까지 나노바나나 스켈레톤 슬롯 구조 스냅샷 문서 작성 후 아트·개발·QA에 배포"}, {"priority": "P0", "action": "[전체] A-02 착수불가 상태 공식 등록 — 세 가지 선행 조건 충족 전 스파인 제작·DLC 경로 통합·스파인 QA 착수 금지 게이팅 적용"}, {"priority": "P1", "action": "[개발] IAM 스케줄링 추상화 레이어 설계 및 DLC 폴백 처리 인터페이스 선설계 완료"}, {"priority": "P1", "action": "[아트] Easter 테마 정적 이미지 5종 + 이펙트 2종 제작 착수 (스파인 3종은 게이팅 해제 후)"}, {"priority": "P1", "action": "[QA] 기존 상점 플로우 회귀 테스트 케이스 업데이트 및 DLC 다운로드 실패 시나리오 초안 작성"}, {"priority": "P2", "action": "[TA] 나노바나나 스켈레톤 슬롯 구조 문서를 프로젝트 공식 TA 문서 체계에 편입"}, {"priority": "P2", "action": "[기획] DLC 기반 시즈널 컨텐츠 기획 시 스파인 애니메이션 목록·본 구조 기준·폴백 정책을 기획서 필수 항목으로 체크리스트화"}]}};
+const D = window.__VDT__;
+
+const VERDICT = {
+  '✅': { cls:'vb-ok',   label:'착수가능', stat:'착수가능' },
+  '⚠️': { cls:'vb-warn', label:'확인필요', stat:'확인필요' },
+  '🔴': { cls:'vb-risk', label:'착수불가', stat:'착수불가' },
+};
+
+function vbadge(v) {
+  const m = VERDICT[v] || VERDICT['?'];
+  return `<span class="vb ${m.cls}">${v} ${m.label}</span>`;
+}
+
+function stBadge(s) {
+  if (s === 'Done')        return `<span class="st-done">✅ Done</span>`;
+  if (s === 'IN PROGRESS') return `<span class="st-wip">⏳ IN PROGRESS</span>`;
+  return `<span class="st-todo">○ ${s||'TODO'}</span>`;
+}
+
+function renderHeader() {
+  return `
+    <div class="header">
+      <div class="header-row">
+        <div class="header-left">
+          <span class="team-badge">🤖 가상 개발팀</span>
+          <div>
+            <div class="header-title">${D.title} — 기획서 품질 분석</div>
+            <div class="header-ticket">${D.ticket_key}</div>
+          </div>
+        </div>
+        <span class="status-badge">⏳ Director 승인 대기 — ${D.analysis_date} 분석 완료</span>
+      </div>
+    </div>`;
+}
+
+function renderStats() {
+  const s = D.stats || {};
+  const items = [
+    { v:'✅', key:'착수가능', cls:'green'  },
+    { v:'⚠️', key:'확인필요', cls:'orange' },
+    { v:'🔴', key:'착수불가', cls:'red'    },
+  ];
+  return `<div class="stats-bar">${
+    items.map(i => `
+      <div class="stat">
+        <span style="color:var(--${i.cls})">${i.v}</span>
+        <span class="stat-num" style="color:var(--${i.cls})">${s[i.key]||0}</span>
+        <span style="color:var(--text-muted)">${i.key}</span>
+      </div>`).join('')
+  }</div>`;
+}
+
+function renderTabs() {
+  return `<div class="tabs">
+    <div class="tab active" onclick="switchTab('spec',this)">📋 기획서</div>
+    <div class="tab" onclick="switchTab('dev',this)">🛠 개발 리스크</div>
+    <div class="tab" onclick="switchTab('meeting',this)">💬 회의록</div>
+  </div>`;
+}
+
+function renderSpecLeft() {
+  const sp = D.spec || {};
+  let html = `<div class="spec-title">기획서 요약: ${D.title}</div>`;
+
+  if (sp.purpose) html += `
+    <div class="section">
+      <div class="section-label">목적 &amp; 배경</div>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.7">${sp.purpose}</p>
+    </div>`;
+
+  if ((sp.key_features||[]).length) html += `
+    <div class="section">
+      <div class="section-label">주요 기능</div>
+      <table class="feat-table"><tbody>${
+        sp.key_features.map(f=>`<tr><td>${f.component}</td><td>${f.content}</td></tr>`).join('')
+      }</tbody></table>
+    </div>`;
+
+  if ((sp.subtasks||[]).length) html += `
+    <div class="section">
+      <div class="section-label">서브태스크 현황</div>
+      <table class="sub-table">
+        <thead><tr><th>서브태스크</th><th>담당</th><th>상태</th></tr></thead>
+        <tbody>${sp.subtasks.map(t=>`<tr><td>${t.key}</td><td>${t.owner}</td><td>${stBadge(t.status)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  if ((sp.incomplete_areas||[]).length) html += `
+    <div class="section">
+      <div class="section-label">⚠️ 미완성 영역</div>
+      ${sp.incomplete_areas.map(a => {
+        const author = typeof a === 'object' ? a.author : '';
+        const text   = typeof a === 'object' ? a.comment : a;
+        return `<div class="warn-card">${author?`<div class="warn-author">${author} 코멘트</div>`:''}<div class="warn-text">${text}</div></div>`;
+      }).join('')}
+    </div>`;
+
+  if ((sp.ui_ux_changes||[]).length) html += `
+    <div class="section">
+      <div class="section-label">UI/UX 변경사항</div>
+      <ul class="bul">${sp.ui_ux_changes.map(u=>`<li>${typeof u==='object'?(u.content||u.description||u.change||JSON.stringify(u)):u}</li>`).join('')}</ul>
+    </div>`;
+
+  if ((sp.edge_cases||[]).length) html += `
+    <div class="section">
+      <div class="section-label">예외/엣지케이스 (기획서 명시분)</div>
+      <ul class="bul">${sp.edge_cases.map(e=>`<li>${typeof e==='object'?(e.content||e.description||e.case||JSON.stringify(e)):e}</li>`).join('')}</ul>
+    </div>`;
+
+  return html;
+}
+
+function renderQaPredictions() {
+  const items = (D.ac_items || []).filter(ac => ac.qa_prediction && ac.verdict !== '✅');
+  if (!items.length) return '';
+  const rows = items.map(ac => {
+    const isCritical = ac.verdict === '🔴';
+    return `
+      <tr>
+        <td style="width:52px;font-weight:700;font-size:11px;vertical-align:top;padding-top:9px">${ac.id}</td>
+        <td style="width:80px;vertical-align:top;padding-top:7px">${vbadge(ac.verdict||'⚠️')}</td>
+        <td style="font-size:11px;color:var(--text-muted);vertical-align:top">${ac.content||''}</td>
+        <td style="font-size:11px;vertical-align:top;color:${isCritical ? 'var(--red)' : '#e8a84a'};font-style:italic;line-height:1.5">${ac.qa_prediction}</td>
+      </tr>`;
+  }).join('');
+  return `
+    <div class="right-section" style="margin-top:20px">
+      <div class="right-section-title">🔮 테스트 예측 리스크
+        <span style="color:var(--text-muted);font-weight:400;font-size:11px"> (⚠️/🔴 항목 ${items.length}건)</span>
+      </div>
+      <table class="ac-table" style="margin-top:8px">
+        <thead><tr>
+          <th style="width:52px">AC#</th>
+          <th style="width:80px">판정</th>
+          <th>기획 항목</th>
+          <th style="width:40%">예측 이슈</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderCriticalQuestions() {
+  const cqs = D.critical_questions || [];
+  if (!cqs.length) return '';
+  const p0 = cqs.filter(q => q.priority === 'P0');
+  const p1 = cqs.filter(q => q.priority === 'P1');
+  const rows = [...p0, ...p1].map(q => `
+    <tr>
+      <td><span class="vb ${q.priority==='P0'?'vb-risk':'vb-warn'}">${q.priority}</span></td>
+      <td style="color:var(--text-muted);font-size:11px">${(q.related_ids||[]).join(', ')}</td>
+      <td style="font-weight:500">${q.question}</td>
+      <td style="color:var(--text-muted);font-size:12px">${q.impact||'—'}</td>
+    </tr>`).join('');
+  return `
+    <div class="right-section" style="margin-top:20px">
+      <div class="right-section-title">❓ Critical Questions <span style="color:var(--text-muted);font-weight:400">(개발 착수 전 기획자 확인 필요)</span></div>
+      <table class="ac-table" style="margin-top:8px">
+        <thead><tr>
+          <th style="width:50px">우선순위</th>
+          <th style="width:80px">관련 AC</th>
+          <th>질문</th>
+          <th style="width:28%">미해결 시 영향</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderRightPanel() {
+  const items   = D.ac_items || [];
+  const dev     = D.developer || {};
+  const order   = dev.impl_order || [];
+  const risks   = dev.impl_risks || [];
+
+  // ── 통계 실시간 재계산 (stats 바와 일치 보장) ──
+  const realStats = {'착수가능':0,'확인필요':0,'착수불가':0};
+  const lmap = {'✅':'착수가능','⚠️':'확인필요','🔴':'착수불가'};
+  items.forEach(ac => { const k = lmap[ac.verdict||'⚠️']; if(k) realStats[k]++; });
+  const total = items.length;
+
+  // ── AC 판정 통계 배지 ──
+  const statBadges = Object.entries(realStats)
+    .filter(([,n]) => n > 0)
+    .map(([k,n]) => {
+      const icon = Object.entries(lmap).find(([,v])=>v===k)?.[0] || '?';
+      const vcls = VERDICT[icon]?.cls || 'vb-unk';
+      return `<span class="vb ${vcls}" style="margin-right:4px">${icon} ${k} ${n}</span>`;
+    }).join('');
+
+  // ── AC 테이블 ──
+  const acRows = items.map(ac => `
+    <tr>
+      <td class="ac-id">${ac.id||''}</td>
+      <td>${ac.content||''}</td>
+      <td>${vbadge(ac.verdict||'⚠️')}</td>
+      <td style="color:var(--text-muted)">${ac.ambiguity||'—'}</td>
+      <td style="color:var(--text-muted);font-style:italic">${ac.missing_info||ac.question||'—'}</td>
+    </tr>`).join('');
+
+  // ── 개발팀 권고사항 (impl_order) ──
+  let devSection = '';
+  if (order.length || risks.length) {
+    const orderItems = order.map((o, i) => `
+      <li>
+        <span class="rec-num">${i+1}</span>
+        <span>${o}</span>
+      </li>`).join('');
+
+    const riskItems = risks.filter(r => r.complexity === 'High').map(r => `
+      <div class="rec-risk-row">
+        <span class="cx-high" style="flex-shrink:0;white-space:nowrap">🔴 High</span>
+        <div style="flex:1;min-width:0">
+          <span style="font-weight:600">${r.feature}</span>
+          <span style="color:var(--text-muted)"> — ${r.risk}</span>
+        </div>
+      </div>`).join('');
+
+    devSection = `
+      <div class="right-section" style="margin-top:20px">
+        <div class="right-section-title">🛠 개발팀 권고사항</div>
+        ${order.length ? `<ol class="rec-list">${orderItems}</ol>` : ''}
+        ${riskItems ? `<div class="rec-risks" style="margin-top:10px">${riskItems}</div>` : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="right-section-title" style="margin-bottom:6px">
+      기획서 품질 판정 <span style="color:var(--text-muted);font-weight:400">(${total}건)</span>
+    </div>
+    <div style="margin-bottom:10px">${statBadges}</div>
+    <table class="ac-table">
+      <thead><tr>
+        <th style="width:56px">AC#</th>
+        <th>내용</th>
+        <th style="width:86px">판정</th>
+        <th style="width:26%">모호한 점</th>
+        <th style="width:22%">확인 필요 사항</th>
+      </tr></thead>
+      <tbody>${acRows}</tbody>
+    </table>
+    ${renderQaPredictions()}
+    ${devSection}
+    ${renderCriticalQuestions()}`;
+}
+
+function ctClass(type, isRisky) {
+  const t = (type||'').trim();
+  if (isRisky)           return 'ct-risky ct-cmod';
+  if (t === '신규')      return 'ct-new';
+  if (t === '수정')      return 'ct-mod';
+  if (t === '공용 수정') return 'ct-cmod';
+  if (t === '완료')      return 'ct-done';
+  if (t === '삭제')      return 'ct-del';
+  return 'ct-mod';
+}
+function cxClass(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return 'cx-high';
+  if (v === 'med')  return 'cx-med';
+  return 'cx-low';
+}
+function cxIcon(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return '🔴';
+  if (v === 'med')  return '🟠';
+  return '🟢';
+}
+
+function renderDevPanel() {
+  const dev = D.developer || {};
+  const impact   = dev.impact_scope  || D.impact_scope  || [];
+  const implRisk = dev.impl_risks    || D.impl_risks     || [];
+  const order    = dev.impl_order    || D.impl_order     || [];
+  const notes    = dev.tech_notes    || D.tech_notes     || [];
+  const title    = D.title || '';
+
+  let html = `<h2 style="font-size:18px;font-weight:700;margin-bottom:22px">개발 리스크 분석: ${title}</h2>`;
+
+  // 영향 범위 분석
+  if (impact.length) {
+    const rows = impact.map(i => `
+      <tr>
+        <td>${i.module||''}</td>
+        <td class="${ctClass(i.change_type, i.is_risky)}">${i.is_risky?'⚠️ ':''}${i.change_type||''}</td>
+        <td style="color:var(--text-muted)">${i.detail||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">영향 범위 분석</div>
+        <table class="impact-table">
+          <thead><tr><th style="width:220px">모듈/영역</th><th style="width:120px">변경 유형</th><th>상세</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 리스크 테이블
+  if (implRisk.length) {
+    const rows = implRisk.map(r => `
+      <tr>
+        <td>${r.feature||''}</td>
+        <td class="${cxClass(r.complexity)}">${cxIcon(r.complexity)} ${r.complexity||''}</td>
+        <td style="color:var(--text-muted)">${r.risk||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 리스크 테이블</div>
+        <table class="impl-table">
+          <thead><tr><th>기능</th><th style="width:100px">복잡도</th><th>리스크</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 순서 권고
+  if (order.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 순서 권고</div>
+        <ol class="impl-order">${order.map(o=>`<li>${typeof o==='object'?(o.content||o.step||o.description||JSON.stringify(o)):o}</li>`).join('')}</ol>
+      </div>`;
+  }
+
+  // 기술 리스크 & 주의사항
+  if (notes.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">기술 리스크 &amp; 주의사항</div>
+        <ul class="tech-notes">${notes.map(n=>`<li>${typeof n==='object'?(n.content||n.note||n.description||JSON.stringify(n)):n}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  if (!impact.length && !implRisk.length && !order.length && !notes.length) {
+    html += `<div style="color:var(--text-muted);font-size:13px">개발 리스크 항목이 없습니다.</div>`;
+  }
+
+  return html;
+}
+
+function render() {
+  document.getElementById('app').innerHTML = `
+    ${renderHeader()}
+    ${renderStats()}
+    ${renderTabs()}
+    <div class="content">
+      <div class="tab-panel active" id="tab-spec">
+        <div class="left-panel">${renderSpecLeft()}</div>
+        <div class="right-panel">${renderRightPanel()}</div>
+      </div>
+      <div class="tab-panel" id="tab-dev" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderDevPanel()}
+      </div>
+      <div class="tab-panel" id="tab-meeting" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderMeeting()}
+      </div>
+    </div>`;
+}
+
+function boldify(text) {
+  return (text||'').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+const AGENT_COLOR = {
+  planner:   'var(--accent)',
+  developer: 'var(--orange)',
+  qa:        'var(--green)',
+  ta:        'var(--blue)',
+};
+
+function renderMeeting() {
+  const m = D.meeting;
+  if (!m || (!m.rounds && !m.consensus)) {
+    return `<div class="empty-panel">회의록이 없습니다.</div>`;
+  }
+
+  let html = `
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:6px">
+      회의록: ${D.ticket_key} ${D.title} 분석
+    </h2>
+    <div class="meeting-meta">
+      일시: ${m.date||D.analysis_date} | 참가자: ${(m.participants||[]).join(', ')}
+    </div>
+    <div class="meeting-sys">[SYS] 회의 시작</div>
+  `;
+
+  let lastRound = 0;
+  for (const r of (m.rounds||[])) {
+    if (r.round > lastRound && lastRound > 0) {
+      html += `<div class="meeting-sys">[SYS] Round ${r.round} 시작</div>`;
+    }
+    lastRound = r.round;
+    const color = AGENT_COLOR[r.agent_type] || 'var(--accent)';
+    html += `
+      <div class="meeting-block">
+        <div class="meeting-agent" style="color:${color}">Round ${r.round} — ${r.agent}</div>
+        <div class="meeting-content">${boldify(r.content)}</div>
+      </div>`;
+  }
+
+  if ((m.consensus||[]).length) {
+    html += `<div class="meeting-sys">[SYS] 합의 도출</div>
+    <ul class="consensus-list">
+      ${m.consensus.map(c => {
+        const p = (c.priority||'P1');
+        const cls = p === 'P0' ? 'cp0' : p === 'P1' ? 'cp1' : 'cp2';
+        return `<li><span class="cprio ${cls}">${p}</span><span>${boldify(c.action)}</span></li>`;
+      }).join('')}
+    </ul>`;
+  }
+
+  return html;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  const panel = document.getElementById('tab-' + name);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'flex'; }
+}
+
+render();
+</script>
+</body>
+</html>
