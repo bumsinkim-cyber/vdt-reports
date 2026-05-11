@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VDT Report</title>
+  <style>
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1c2128;
+      --border: #30363d; --text: #e6edf3; --text-muted: #7d8590;
+      --accent: #4f6ef7;
+      --green: #3fb950; --green-bg: rgba(63,185,80,.12);
+      --orange: #d29922; --orange-bg: rgba(210,153,34,.12);
+      --red: #f85149; --red-bg: rgba(248,81,73,.12);
+      --blue: #58a6ff; --blue-bg: rgba(88,166,255,.12);
+      --gray: #7d8590; --gray-bg: rgba(125,133,144,.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system,'Pretendard',sans-serif; font-size:13px; line-height:1.6; overflow:hidden; }
+
+    /* ── Header ── */
+    .header { background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 12px 20px; }
+    .header-row { display:flex; justify-content:space-between; align-items:center; }
+    .header-left { display:flex; align-items:center; gap:10px; }
+    .team-badge { font-size:11px; background: rgba(79,110,247,.2); color: var(--accent); padding: 2px 8px; border-radius:10px; font-weight:600; }
+    .header-title { font-size:14px; font-weight:700; }
+    .header-ticket { font-size:11px; color: var(--text-muted); margin-top:2px; }
+    .status-badge { font-size:11px; color: var(--orange); background: var(--orange-bg); padding: 3px 10px; border-radius:10px; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display:flex; gap:20px; padding: 8px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+    .stat { display:flex; align-items:center; gap:5px; font-size:12px; cursor:default; }
+    .stat-num { font-weight:700; font-size:13px; }
+
+    /* ── Tabs ── */
+    .tabs { display:flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 20px; }
+    .tab { padding: 9px 14px; font-size:12px; cursor:pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: color .15s; user-select:none; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Layout ── */
+    .content { display:flex; height: calc(100vh - 105px); }
+    .tab-panel { display:none; width:100%; }
+    .tab-panel.active { display:flex; }
+
+    /* ── Left panel ── */
+    .left-panel { width:36%; overflow-y:auto; border-right:1px solid var(--border); padding:18px; flex-shrink:0; }
+    .spec-title { font-size:16px; font-weight:700; margin-bottom:16px; line-height:1.4; }
+    .section { margin-bottom:18px; }
+    .section-label { font-size:10px; font-weight:700; color: var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+
+    /* Feature table */
+    .feat-table { width:100%; border-collapse:collapse; }
+    .feat-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .feat-table td:first-child { color: var(--text-muted); width:32%; background: var(--bg-card); white-space:nowrap; }
+
+    /* Subtask table */
+    .sub-table { width:100%; border-collapse:collapse; }
+    .sub-table th { font-size:11px; text-align:left; padding:5px 8px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .sub-table td { padding:5px 8px; border:1px solid var(--border); font-size:12px; }
+    .st-done { color: var(--green); } .st-wip { color: var(--blue); } .st-todo { color: var(--gray); }
+
+    /* Warning */
+    .warn-card { background: rgba(210,153,34,.07); border-left:3px solid var(--orange); padding:8px 10px; margin-bottom:6px; border-radius:0 4px 4px 0; }
+    .warn-author { font-size:11px; color: var(--orange); margin-bottom:3px; }
+    .warn-text { font-size:12px; }
+
+    /* Bullet */
+    .bul { list-style:none; }
+    .bul li { padding:3px 0 3px 14px; font-size:12px; position:relative; }
+    .bul li::before { content:'•'; position:absolute; left:0; color: var(--text-muted); }
+
+    /* ── Right panel ── */
+    .right-panel { flex:1; overflow-y:auto; padding:18px; }
+    .panel-title { font-size:13px; font-weight:600; margin-bottom:12px; }
+
+    /* AC Table */
+    .ac-table { width:100%; border-collapse:collapse; }
+    .ac-table th { font-size:11px; text-align:left; padding:7px 9px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); position:sticky; top:0; z-index:1; }
+    .ac-table td { padding:7px 9px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .ac-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ac-id { font-family:monospace; font-size:11px; color: var(--text-muted); white-space:nowrap; }
+
+    /* Verdict badges */
+    .vb { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .vb-ok   { background: var(--green-bg);  color: var(--green);  }
+    .vb-warn { background: var(--orange-bg); color: var(--orange); }
+    .vb-unk  { background: var(--gray-bg);   color: var(--gray);   }
+    .vb-add  { background: var(--blue-bg);   color: var(--blue);   }
+    .vb-risk { background: var(--red-bg);    color: var(--red);    }
+
+    /* Right panel sections */
+    .right-section { margin-bottom: 20px; }
+    .right-section-title { font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:10px; }
+    .rec-list { padding-left:0; list-style:none; margin:0; display:flex; flex-direction:column; gap:6px; }
+    .rec-list li { display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); line-height:1.5; }
+    .rec-num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .rec-risk-row { display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .rec-risk-row:last-child { border-bottom:none; }
+
+    /* Dev panel */
+    .dev-section { margin-bottom:28px; }
+    .dev-section-title { font-size:14px; font-weight:700; color: var(--accent); margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+    /* Impact scope table */
+    .impact-table { width:100%; border-collapse:collapse; }
+    .impact-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impact-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impact-table tr:hover td { background: rgba(255,255,255,.018); }
+    .ct-new  { color: var(--blue); }
+    .ct-mod  { color: var(--text-muted); }
+    .ct-cmod { color: var(--orange); }
+    .ct-done { color: var(--green); }
+    .ct-del  { color: var(--red); }
+    .ct-risky::before { content:'⚠️ '; }
+
+    /* Impl risk table */
+    .impl-table { width:100%; border-collapse:collapse; }
+    .impl-table th { font-size:11px; text-align:left; padding:7px 10px; background: var(--bg-card); border:1px solid var(--border); color: var(--text-muted); }
+    .impl-table td { padding:7px 10px; border:1px solid var(--border); font-size:12px; vertical-align:top; }
+    .impl-table tr:hover td { background: rgba(255,255,255,.018); }
+    .cx-high { color: var(--red); font-weight:600; }
+    .cx-med  { color: var(--orange); font-weight:600; }
+    .cx-low  { color: var(--green); font-weight:600; }
+
+    /* Impl order list */
+    .impl-order { list-style:none; counter-reset:order; }
+    .impl-order li { counter-increment:order; padding:6px 0 6px 28px; font-size:12px; position:relative; border-bottom:1px solid rgba(48,54,61,.6); }
+    .impl-order li:last-child { border-bottom:none; }
+    .impl-order li::before { content:counter(order); position:absolute; left:0; top:7px; width:18px; height:18px; background: var(--accent); color:#fff; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; text-align:center; }
+
+    /* Tech notes */
+    .tech-notes { list-style:none; }
+    .tech-notes li { padding:5px 0 5px 16px; font-size:12px; color: var(--text-muted); position:relative; border-bottom:1px solid rgba(48,54,61,.4); }
+    .tech-notes li:last-child { border-bottom:none; }
+    .tech-notes li::before { content:'•'; position:absolute; left:0; color: var(--accent); font-size:14px; line-height:1.4; }
+
+    /* ── Meeting ── */
+    .meeting-meta { font-size:12px; color: var(--text-muted); margin-bottom:24px; }
+    .meeting-sys {
+      font-size:11px; font-weight:700; color: var(--text-muted);
+      letter-spacing:.6px; padding:10px 0 8px;
+      border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+      margin: 20px 0 16px;
+    }
+    .meeting-sys:first-of-type { margin-top:0; border-top:none; }
+    .meeting-block { margin-bottom:22px; }
+    .meeting-agent { font-size:14px; font-weight:700; margin-bottom:8px; }
+    .meeting-content { font-size:13px; line-height:1.8; color: var(--text-muted); }
+    .meeting-content strong { color: var(--text); }
+    .consensus-list { list-style:none; margin-top:4px; }
+    .consensus-list li {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:8px 0; font-size:13px; line-height:1.6;
+      border-bottom:1px solid rgba(48,54,61,.5);
+    }
+    .consensus-list li:last-child { border-bottom:none; }
+    .cprio { font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; margin-top:2px; flex-shrink:0; }
+    .cp0 { background: var(--red-bg);    color: var(--red); }
+    .cp1 { background: var(--orange-bg); color: var(--orange); }
+    .cp2 { background: var(--green-bg);  color: var(--green); }
+
+    /* Meeting placeholder */
+    .empty-panel { width:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:13px; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+window.__VDT__ = {"ticket_key": "CVS-13184", "title": "레이싱 Meta - 2 (타임어택 100인)", "analysis_date": "2026-05-11", "status": "Director 승인 대기", "stats": {"착수가능": 19, "확인필요": 47, "착수불가": 2}, "spec": {"purpose": "Habit Wager보다 높은 목표 Wager를 통해 Wager 증가 및 Revenue 증가", "key_features": [{"component": "기본 설정", "content": "이름: Time Attack Race 100 / 대상: Level >= 30이며 최근 14일 내 스핀 기록이 있어 habit wager를 확인할 수 있는 유저 / 레벨 개수 및 레벨별 제한시간 설정 가능(ms단위) / 레벨당 표시 인원: 본인 제외 6명(클럽원 2명, 친구 1명, 나머지 봇) / 클럽원·친구 프로필은 최근 1일 내 접속 기록 있는 유저에서 가져옴"}, {"component": "진행 방식", "content": "타임어택 방식 / 각 레벨별 제한 시간은 어드민에서 컨트롤 가능 / 첫 레벨은 메타 캠페인 시작 후 자동참여(로비 재진입 시 메타 팝업 띄우며 자동 시작) / 목표 포인트를 채웠으면 메타에 한 번 들어가야 다음 레벨 진입 가능 / 제한시간 내 클리어하지 못했을 때도 메타에 한 번 들어가야 진행됨 / 목표 Wager 도달 후 초과 포인트는 다음 레벨로 이월되지 않음 / 모든 레벨 완료(Grand Prize 수령) 시 다음 캠페인부터 참여 가능"}, {"component": "Gem Restart", "content": "Gem Restart On: 제한시간 내 클리어 못한 경우 1레벨부터 다시 시작하거나 젬을 소비하여 해당 레벨 포인트 0부터 다시 시작 / Gem Restart Off: 제한시간 내 클리어 못한 경우 해당 레벨부터 다시 시작"}, {"component": "포인트 및 Eligible Bet", "content": "포인트: Spin의 Bet/100,000, simple number로 표기 / Eligible Bet - Lv 30~49: 200K / Lv 50~99: 500K / Lv 100~: 1M / 레이스 도중 유저 레벨 구간 변동이 되어도 메타 처음 입장 시 eligible bet 고정"}, {"component": "보상", "content": "마지막 레벨 완료 보상(RTP 2%) / 유저별 habit에 따라 다른 보상 / 어드민에서 Net RTP 코인·젬별로 세팅 가능 / 코인·젬·머지카드 세팅 가능 / 중간보상 설정 가능(특정 레벨에 최대 2종류) / 중간보상은 해당 레벨 도달 즉시 수령(Later, Go 선택 전) / 중간보상 한 번 받으면 restart해도 재지급 없음 / 모든 보상은 앞 3자리 뒤에는 버림처리"}, {"component": "메타아이콘", "content": "원형 초록색 게이지로 남은 레이스 포인트 표시 / 남은 타이머 시간 표시 / 남은 시간 1분 이하 시 Kudo 알림 / 레벨 통과/실패 시 표시 / 쉬는중 표시 / 각 상태: 진행중(1분 이하), 진행중(1분 초과), 쉬는중, 레벨 완료, 레벨 탈락, Lock 상태"}, {"component": "Economy", "content": "레이스 포인트 계산: Spin의 Bet/100,000, 소수점 이하 버림 / 총 Target Wager = Habit Wager * Difficulty Multi * Event Duration / 레벨별 gem restart 비용(2레벨부터 적용): (1레벨~현재 레벨별 목표wager 합)/69333.333 * (Gem Restart Multi) / 최종보상: {(target wager) - (Event Duration)*(habit wager)}*Net RTP / 중간보상이 있을 경우 최종 보상 = 총보상 - 중간보상"}, {"component": "어드민", "content": "Campaign에서 Passive Event로 메타 세팅 가능 / 18종 아트 에셋 업로드하여 캠페인 세팅 시 테마 선택 / Time Attack Race Setting: ID, 이름, 레벨 개수, Gem Restart 여부 / 밸런스 세팅: Target Wager, gem restart 비용, Net RTP, Gem Restart on/off, 메타 최소/최대 habit wager, 이벤트 기간 / 레벨 세팅: 레벨 개수, 레벨당 목표 wager 비중, 레벨당 제한 시간, 중간보상량 / 레벨 copy·삭제·추가 가능, 1개 이상 존재 필수, CSV Import 기능"}, {"component": "QA 치트 기능", "content": "1. Set Level: 특정 레벨로 즉시 이동 / 2. Add Race Point: 현재 레벨의 게이지(포인트)를 강제로 채우는 기능 / 3. Reset User History: 해당 유저의 레이스 참여 기록 초기화하여 최초 진입부터 다시 테스트"}, {"component": "Analytics", "content": "측정 지표: Revenue, Session Length, Session Count, 레이싱 완주 비율"}], "subtasks": [{"key": "CVS-13382", "owner": "서버", "status": "TODO"}, {"key": "CVS-13383", "owner": "클라", "status": "TODO"}, {"key": "CVS-13384", "owner": "TA", "status": "IN PROGRESS"}], "incomplete_areas": [{"author": "", "comment": "슬라이드 37: 5인 직선형 기능 설명이 별개 기능(Others) 참고용으로 명시되어 있으나 내용이 생략되어 있어 해당 내용 확인 불가"}, {"author": "", "comment": "슬라이드 38~42: Admin UI 상세 스크린샷이 레퍼런스로 포함되어 있으나 이미지 내용 상세 확인 불가"}], "ui_ux_changes": ["세로·가로모드 상관없이 모두 세로 형식으로 통일하여 제작", "상단에 보물상자(웹이미지 연동) — 영역 누르면 토스트 팝업으로 보상 표시 / 보물상자 아래 문구 'Finish all N levels to win the Grand Prize!'", "보물상자보다 아래쪽 경계선 기준으로 스크롤 가능(배경 고정, 레벨들만 스크롤)", "레벨마다 숫자 표시(오브젝트 중앙 하단) / 현재 레벨 컬러, 미도달 레벨 모노톤, 지난 레벨 컬러에 dim", "현재 본인의 레벨에 유저 프로필 — 중앙 가장 앞에 본인, 양옆 3명 총 6명", "중앙 하단에 남은 시간 게이지 표시 / 30초 미만 남았을 때 게이지 색상 빨간색으로 변경", "하단 문구 Complete the level within the time limit to advance! 레벨 무관 고정", "가로형일 때 레이싱 오브젝트가 2.5개는 보이도록", "첫 진입: 캠페인 시작 후 로비 재접속 or 메타아이콘 클릭 시 팝업 자동으로 띄우면서 시작 / 1레벨 아이콘 컬러 / 유저 프로필이 본인·왼-오-왼-오-왼-오 순으로 생김 / 상단 보물상자에 보상 토스트팝업(5초 동작 없을 시 닫힘) / 메타 첫 진입 시 튜토리얼", "레벨 올라갈 때: 0.5초 Completed 표시 → 게이지·하단 UI 사라짐 → 클리어 레벨 오브젝트·아이콘 dim·4명은 이전 레벨·3명은 다음 레벨 → 다음 칸 레벨 표시 아이콘 컬러로 변경", "Congratulations 팝업: 레벨 오브젝트 위에 cvs 할아버지 캐릭터, 팝업 중앙하단에 캠페인 타이머 / Later 선택 시 게이지 없이 본인 프로필만·zzz 페이드아웃·START! 버튼 / Go!/Start! 클릭 시 즉시 게이지·6명 프로필 왼-오 순으로 생성", "중간 보상: Completed! → 게이지·하단 UI 사라짐 → 리워드 팝업 → collect로 닫힘 → 3명 다음 레벨·4명 이전 레벨 그대로 → Congratulations 팝업", "Grand Prize 연출: 레이스 완료 팝업 → Congratulations! 타이틀·보물상자(글로우) → Open 클릭 시 open particle 연출 → 리워드 팝업 → 하단 UI·게이지·타 유저 프로필 사라지고 본인 유저 프로필이 보물상자로 점프", "Event Completed 팝업: 레이스 타이틀, 유저 본인 프로필에 왕관, Cool 버튼, 타이머 없음", "레벨 탈락(Gem Restart OFF): 본인 프로필 떨어지는 연출 / Later·Go! 선택에 따른 UI 분기", "레벨 탈락(Gem Restart ON): 젬 소모하여 해당 레벨 재시작 또는 1레벨 재시작 / Gem 부족 시 Gem shop 오픈 / X버튼 없음", "튜토리얼: 메타 처음 진입 시 또는 [?] 클릭 시 표시 / Start 또는 X버튼으로 닫음 / 세로형·가로형 필요", "메타아이콘: 레이스 진행 중 현재 레벨 숫자·레이스 타이머 표시 / 쉬는 중 zzz 모션·START!·캠페인 타이머 / 레벨 완료 시 레드닷·FINISHED / 타임아웃 시 전체 dim·레드닷·RESTART·초록 게이지 초기화", "메타아이콘 레이스 포인트 획득 연출: 메타아이콘 전체 글로우 + 아이콘 잠깐 커졌다 작아지는 연출", "Eligible Bet 토스트팝업: 현재 bet이 eligible bet 미만 시 3초간 표시 / 레이스 메타 아이콘 dim·아이콘 순서는 맨앞 유지", "Kudo 알림 1: Hurry! Only 1 minute left! (1분 남았을 때 1회)", "Kudo 알림 2: You are in! Check your results now! (게이지 전부 채우고 타이머 내 클리어 시)", "Kudo 알림 3: Times up. Try again! (타이머 내 레벨 클리어 실패 시)"], "edge_cases": ["목표 Wager 도달 후 초과 포인트는 다음 레벨로 이월되지 않음", "목표 포인트를 채웠으나 메타에 들어가지 않고 캠페인 종료 시 보상(중간보상 포함) 지급하지 않음", "중간보상 한 번 받으면 restart하거나 탈락하더라도 중간보상이 다시 지급되지 않음", "Gem Restart ON 상태에서 1레벨 탈락 시 Gem Restart 없이 팝업(1레벨에서는 Gem Restart 적용 안 함)", "Gem Restart ON 탈락 팝업은 X버튼 없음, CTA 반드시 클릭해야 닫힘", "Gem 부족 시 Gem shop 오픈", "연출 도중 강종 시 Later로 처리(레벨 클리어·탈락 연출 모두 해당)", "Grand Prize 팝업 연출 도중 강종 시 Open 클릭 여부 상관없이 메타 진입 시 수령 처리 및 event complete 팝업 표시", "Gem Restart ON 탈락 연출 도중 강종 시 다시 Too Slow 팝업 표시 / 메타아이콘 dim·restart·레드닷 유지", "캠페인 종료 후 Break your streak·Restart·Go·Later 버튼 누를 경우 에러 팝업 후 이벤트 종료 처리", "Grand Prize 팝업 표시 중 캠페인 종료 후 Open 클릭 시 리워드 연출 및 event completed 팝업까지 정상 표시", "Event Completed 팝업 표시 중 캠페인 종료 후 Cool! 버튼 클릭 시 에러 팝업 없이 팝업 닫고 이벤트 종료 처리", "레이스 도중 유저 레벨 구간 변동이 되어도 메타 처음 입장 시 eligible bet 고정", "모든 레벨 완료(Grand Prize 수령) 시 현재 캠페인 종료 후 다음 캠페인부터 참여 가능", "어드민 레벨 상세에서 중간보상 3개 이상 세팅 시도 시 에러 처리", "중간보상 세팅 시 Grand Prize의 coin·gem 양은 중간보상량을 뺀 값으로 자동 계산", "스핀 블로커 방지: 각 레벨에서 목표 포인트를 채웠으면 메타에 한 번 들어가야 다음 레벨 진입 가능"]}, "ac_items": [{"id": "M-01", "category": "M", "category_name": "메인/매칭", "content": "대상: Level >= 30이며 최근 14일 내 스핀 기록이 있어 habit wager를 확인할 수 있는 유저", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "habit wager 산출 불가 유저(14일 내 스핀 0회)의 처리 방식 불명확", "missing_info": "habit wager 산출 불가 유저에 대한 fallback 정책, Level 30 미만 유저가 이벤트 도중 Lv 30 달성 시 자동 편입 여부", "question": "14일 내 스핀 기록이 없어 habit wager를 계산할 수 없는 유저는 이벤트 참여 자체가 불가한가? 이벤트 시작 시점에 Lv 29였다가 도중 Lv 30 달성한 유저는 자동 편입되는가?", "qa_prediction": "habit wager 산출 불가 유저에게 참여 여부가 명확하지 않으면 → 메타아이콘 표시 기준 불일치로 QA 판정 기준 수립 불가 증상 발생 예측"}, {"id": "M-02", "category": "M", "category_name": "메인/매칭", "content": "레벨당 표시 인원: 본인 제외 6명(클럽원 2명, 친구 1명, 나머지는 기본 프로필 봇). 클럽원·친구 프로필은 최근 1일 내 접속 기록 있는 유저에서 가져옴", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "클럽원·친구가 1일 내 접속 기록 있는 유저가 2명·1명 미만일 때 봇으로 채우는지 불명확", "missing_info": "클럽원·친구 조건 미달 시 슬롯 대체 로직, 봇 프로필 데이터 구성(닉네임·아바타 출처), 동일 유저가 클럽원이면서 친구인 경우 중복 처리 방식", "question": "클럽원·친구 조건 충족 유저가 부족할 경우 해당 슬롯을 봇으로 대체하는가? 봇 프로필의 닉네임·아바타는 어떻게 생성하는가?", "qa_prediction": "클럽원·친구가 0명인 유저 케이스에서 → 6개 슬롯 전부 봇으로 채워야 하는지 불명확하여 표시 인원 수 오류 버그 예측"}, {"id": "M-03", "category": "M", "category_name": "메인/매칭", "content": "첫 레벨은 메타 캠페인 시작 후 자동참여(로비 재진입 시 메타 팝업 띄우며 자동 시작)", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "캠페인 시작 시점에 이미 로비에 있는 유저 vs. 이후 접속한 유저의 자동참여 트리거 시점 불명확", "missing_info": "자동참여 트리거 조건(캠페인 시작 이벤트 수신 시점 vs. 로비 재진입 시점)", "question": "캠페인 시작 시각에 이미 로비 화면에 있던 유저는 즉시 팝업이 뜨는가, 아니면 다음 로비 재진입 시에 뜨는가?", "qa_prediction": "캠페인 시작 시 로비 체류 유저 케이스에서 → 팝업이 즉시 뜨지 않아 자동참여 누락 버그 또는 중복 팝업 발생 증상 예측"}, {"id": "M-04", "category": "M", "category_name": "메인/매칭", "content": "Gem Restart On: 제한시간 내 클리어 못한 경우 레벨 1부터 다시 시작하거나 젬을 소비하여 해당 레벨 포인트 0부터 다시 시작 가능", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "젬을 소비하여 해당 레벨 포인트 0부터 다시 시작 — 제한시간도 초기화인지 불명확", "missing_info": "젬 소비 후 제한시간 리셋 여부, 젬 차감 타이밍", "question": "젬으로 해당 레벨 재시작 시 제한시간도 초기화되는가? 젬 차감은 팝업 확인 즉시 이루어지는가?", "qa_prediction": "젬 소비 후 타이머 초기화 여부가 불명확한 경우 → 타이머가 잔여시간에서 이어지거나 전부 초기화되는 구현 불일치 버그 예측"}, {"id": "M-05", "category": "M", "category_name": "메인/매칭", "content": "Gem Restart Off: 제한 시간 내 클리어 못한 경우 해당 레벨부터 다시 시작", "source": "슬라이드 3 - 100인 레이싱", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "M-06", "category": "M", "category_name": "메인/매칭", "content": "각 레벨에서 목표 포인트를 채웠으면 메타에 한 번 들어가야 다음 레벨 진입 가능(스핀 블로커 방지)", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "메타 진입의 정의가 팝업 오픈인지, 서버 통신 완료인지 불명확", "missing_info": "메타 진입 이전에 스핀으로 추가 획득한 포인트의 처리 방식", "question": "목표 포인트 달성 후 메타 미진입 상태에서 추가 스핀 시 초과 포인트는 완전히 버려지는가(M-09와 연계)?", "qa_prediction": "목표 포인트 달성 후 메타 미진입 상태에서 대량 스핀 시 → 포인트가 이월되거나 누적되는 버그 발생 예측"}, {"id": "M-07", "category": "M", "category_name": "메인/매칭", "content": "목표 포인트 채우면 메타아이콘이 FINISHED로 바뀌고, 캠페인 종료 전에 메타 진입하면 FINISHED된 시점의 결과에 따라 다음 레벨 진입 가능", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "FINISHED된 시점의 결과에 따라 다음 레벨 진입 가능 — 캠페인 종료 전 메타에 진입하지 않으면(L-06 참조) 보상을 받지 못하는 조건과의 관계가 불명확", "missing_info": "캠페인 종료 직전 메타아이콘이 FINISHED 상태일 때 캠페인이 종료되면 다음 레벨 보상이 지급되는지 여부", "question": "캠페인 종료 시 메타아이콘이 FINISHED 상태(목표 달성 후 메타 미진입)인 경우, 레벨 클리어 보상이 지급되는가 안 되는가? L-06와 상충되지 않는가?", "qa_prediction": "캠페인 종료 직전 FINISHED 상태 유저 케이스에서 → 보상 지급/미지급 처리가 L-06와 충돌하여 중복 지급 또는 미지급 버그 예측"}, {"id": "M-08", "category": "M", "category_name": "메인/매칭", "content": "제한시간 내 클리어하지 못했을 때도 메타에 한 번 들어가야 진행됨(메타아이콘은 RESTART 상태)", "source": "슬라이드 3 - 100인 레이싱", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "M-09", "category": "M", "category_name": "메인/매칭", "content": "목표 Wager 도달 후 초과 포인트는 다음 레벨로 이월되지 않음", "source": "슬라이드 3 - 100인 레이싱", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "M-10", "category": "M", "category_name": "메인/매칭", "content": "모든 레벨 완료(Grand Prize 수령) 시 다음 캠페인부터 참여 가능", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "모든 레벨 완료 후 현재 캠페인 기간 내에는 메타아이콘이 어떻게 표시되는지 불명확", "missing_info": "Grand Prize 수령 후 현재 캠페인 종료 전까지 메타아이콘 상태 및 클릭 시 동작", "question": "Grand Prize 수령 후 현재 캠페인이 아직 종료되지 않은 상태에서 메타아이콘은 어떤 상태로 표시되고, 클릭 시 어떤 화면이 나오는가?", "qa_prediction": "Grand Prize 수령 후 캠페인 잔여 기간 동안 메타아이콘 클릭 시 → 예외 처리 없이 레이스 메타가 다시 열리거나 빈 화면 표시 버그 예측"}, {"id": "M-11", "category": "M", "category_name": "메인/매칭", "content": "포인트: Spin의 Bet/100,000, simple number로 표기", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "Bet 단위가 무엇인지(크레딧 원화 단위 등) 명시 없음", "missing_info": "Bet의 기준 단위, 포인트 표기 최솟값(Bet < 100,000이면 0인지)", "question": "Bet의 단위는 무엇인가(크레딧 기준인가)? Bet이 100,000 미만인 경우 포인트가 0으로 표기되는가?", "qa_prediction": "Bet 단위 오해 시 → 포인트 산출 값이 100배 또는 1/100 수준으로 잘못 계산되는 심각한 밸런스 버그 예측"}, {"id": "M-12", "category": "M", "category_name": "메인/매칭", "content": "Eligible Bet - Lv 30~49: 200K / Lv 50~99: 500K / Lv 100~: 1M", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "레이스 도중 유저 레벨이 구간을 넘어설 경우의 eligible bet 변동 여부가 이 항목에서 불명확(L-04에서 고정으로 명시되어 있으나 이 항목과 분리 명시)", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "M-13", "category": "M", "category_name": "메인/매칭", "content": "난이도(목표 Wager): 설정 가능. 전체 난이도 및 레벨별 난이도 프리셋으로 조절 가능", "source": "슬라이드 3 - 100인 레이싱", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "전체 난이도 설정과 레벨별 난이도 프리셋이 동시에 설정된 경우 우선순위 불명확", "missing_info": "전체 난이도 설정과 레벨별 프리셋 간 우선순위 및 합산/덮어쓰기 방식", "question": "전체 난이도 Multiplier와 레벨별 Target Wager Rate가 동시에 설정된 경우 어떻게 계산되는가?", "qa_prediction": "난이도 설정 우선순위 불명확 시 → 어드민에서 의도한 난이도와 실제 목표 wager가 불일치하는 밸런스 오류 예측"}, {"id": "M-14", "category": "M", "category_name": "메인/매칭", "content": "레이스 포인트 계산: Spin의 Bet/100,000, 소수점 이하 버림 / 총 Target Wager = Habit Wager * Difficulty Multi * Event Duration", "source": "슬라이드 25 - Economy", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "Event Duration 단위(일, 시간, 분) 불명확. Difficulty Multi의 적용 범위 불명확", "missing_info": "Event Duration 단위, Difficulty Multi가 전체 Target Wager에 일괄 적용되는지 레벨별 Rate와 결합되는 방식", "question": "Event Duration의 단위는 무엇인가(일 단위인가)? Difficulty Multi는 총 Target Wager에 곱하는 단일 값인가, 레벨별로 다른 값인가?", "qa_prediction": "Event Duration 단위 오해 시 → 총 Target Wager가 24배 또는 1/24로 계산되는 극단적 밸런스 오류 예측"}, {"id": "M-15", "category": "M", "category_name": "메인/매칭", "content": "레벨별 gem restart 비용(2레벨부터 적용): (1레벨~현재 레벨별 목표wager 합)/69333.333 * (Gem Restart Multi)", "source": "슬라이드 25 - Economy", "verdict": "🔴", "verdict_label": "착수불가", "ambiguity": "(1레벨~현재 레벨별 목표wager 합)/69333.333 * (Gem Restart Multi) — 제수 69333.333의 출처·의미 불명확", "missing_info": "69333.333의 산출 근거 또는 의미, 최솟값/최댓값 gem 비용 제한 여부, 소수점 처리 방식", "question": "69333.333은 어떻게 도출된 수치인가? Gem Restart 비용에 최솟값 또는 최댓값 제한이 있는가? 계산 결과의 소수점은 어떻게 처리하는가?", "qa_prediction": "제수 의미 불명확 및 부동소수점 정밀도 이슈(TA 리스크)로 인해 → 레벨 수·목표 wager 조합에 따라 Gem 비용이 기획 의도와 다르게 산출되거나, 특정 레벨에서 음수/0 비용이 발생하는 버그 예측"}, {"id": "M-16", "category": "M", "category_name": "메인/매칭", "content": "최종보상: {(target wager) - (Event Duration)*(habit wager)}*Net RTP / 중간보상이 있을 경우 최종 보상 = 총보상 - 중간보상", "source": "슬라이드 25 - Economy", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "계산 결과가 음수일 때(target wager < Event Duration * habit wager) 처리 방식 불명확", "missing_info": "최종 보상 음수 케이스 처리, 총보상의 정확한 정의", "question": "최종 보상 계산 결과가 0 이하인 경우 어떻게 처리하는가?", "qa_prediction": "어드민 세팅 오류로 보상 계산 결과가 음수인 케이스에서 → 음수 크레딧 지급 또는 오류 없이 0 지급되는 버그 발생 예측"}, {"id": "M-17", "category": "M", "category_name": "메인/매칭", "content": "Break your streak 선택 시 즉시 1레벨부터 다시 시작(강제시작) / Restart 선택 시 즉시 해당 레벨 게이지 초기화하여 다시 시작(강제시작)", "source": "슬라이드 16 - 레벨 탈락 연출 - Gem Restart ON", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "Break your streak가 어느 상태에서 노출되는 버튼인지 맥락 불명확. Gem Restart ON/OFF 각 경우에서 이 버튼 노출 여부 불명확", "missing_info": "Break your streak 버튼이 표시되는 정확한 진입점 및 조건", "question": "Break your streak 버튼은 Gem Restart ON 상태의 탈락 팝업에서만 표시되는가, OFF 상태에서도 표시되는가?", "qa_prediction": "Break your streak 노출 조건 불명확 시 → Gem Restart OFF 유저에게도 해당 버튼이 표시되거나 반대로 숨겨지는 UI 오류 예측"}, {"id": "U-01", "category": "U", "category_name": "UI/UX", "content": "세로·가로모드 상관없이 모두 세로 형식으로 통일하여 제작", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "U-02", "category": "U", "category_name": "UI/UX", "content": "상단에 보물상자(웹이미지 연동). 영역 누르면 토스트 팝업으로 보상 표시 / 보물상자 아래 문구 Finish all N levels to win the Grand Prize! — N은 세팅한 레벨 수에 따라 바뀜(현재 남은 레벨 수와 상관 없음)", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "TA 리스크: Grand_Prize_Chest CDN URL 미설정 시 공백 렌더링 가능. 보상 토스트 팝업 내용 포맷 불명확", "missing_info": "CDN URL 미설정/로드 실패 시 Fallback 처리 방침, 보상 토스트 팝업 내용 포맷", "question": "보물상자 이미지 CDN 로드 실패 시 Fallback 텍스처나 대체 표시가 있어야 하는가?", "qa_prediction": "CDN URL 미설정 케이스에서 → 보물상자 영역이 공백으로 렌더링되어 사용자가 Grand Prize 존재를 인지 불가 증상 예측"}, {"id": "U-03", "category": "U", "category_name": "UI/UX", "content": "보물상자보다 아래쪽 경계선 기준으로 스크롤 가능(배경은 고정, 레벨들만 스크롤)", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "스크롤 범위 불명확. 현재 레벨로 자동 스크롤되는지 여부 불명확", "missing_info": "스크롤 시작/끝 위치 기준, 메타 진입 시 현재 레벨 위치로 자동 스크롤 여부", "question": "메타 화면 진입 시 현재 진행 중인 레벨 위치로 자동 스크롤되는가?", "qa_prediction": "자동 스크롤 미구현 시 → 레벨 수가 많은 캠페인에서 유저가 현재 레벨을 찾지 못하는 UX 문제 예측"}, {"id": "U-04", "category": "U", "category_name": "UI/UX", "content": "레벨마다 숫자 표시(오브젝트 중앙 하단) / 현재 레벨 컬러, 미도달 레벨 모노톤, 지난 레벨 컬러에 dim", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "dim의 정도(투명도 수치) 불명확. 숫자 표기 위치 불명확", "missing_info": "dim 투명도 수치, 숫자 폰트·크기·색상 스펙", "question": "지난 레벨의 dim 처리 투명도는 몇 %인가? 레벨 숫자는 오브젝트 이미지 내부 하단에 오버레이되는가, 오브젝트 이미지 아래쪽 외부에 위치하는가?", "qa_prediction": "dim 수치 미합의 시 → QA에서 dim 정도의 정오 판단 기준 없이 시각적 판정 불일치 버그 리포트 발생 예측"}, {"id": "U-05", "category": "U", "category_name": "UI/UX", "content": "현재 본인의 레벨에 유저 프로필 — 중앙 가장 앞에 본인, 양옆 3명 총 6명 표시", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "중앙 가장 앞에 본인, 양옆 3명 총 6명 표시 — M-02(본인 제외 6명)와 숫자 불일치 가능성", "missing_info": "프로필 배치 최종 레이아웃(z-order 포함), 총 표시 인원 최종 확정", "question": "본인 포함 7명이 아닌 본인 제외 6명인데, 본인 프로필은 중앙에 별도로 표시되고 나머지 6명이 양옆 3명씩 배치되는 구조인가?", "qa_prediction": "M-02의 본인 제외 6명과 이 항목의 총 6명 불일치로 → 총 표시 인원 수 구현 오류 버그 예측"}, {"id": "U-06", "category": "U", "category_name": "UI/UX", "content": "중앙 하단에 남은 시간 게이지 표시 / 30초 미만 남았을 때 게이지 색상 빨간색으로 변경", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "게이지 표현 방식(원형/바형) 및 시간 수치 텍스트 병기 여부 불명확. 30초 미만 판정 기준이 클라이언트 기준인지 서버 기준인지 불명확", "missing_info": "게이지 UI 형태, 30초 색상 변경의 서버/클라이언트 판정 기준", "question": "시간 게이지는 어떤 형태인가(원형 프로그레스바/선형 바)? 30초 미만 판정은 서버 시각 기준인가 클라이언트 기준인가?", "qa_prediction": "30초 판정 기준 불명확 시 → 네트워크 지연 환경에서 색상 변경 타이밍이 실제 서버 잔여시간과 불일치하는 버그 예측"}, {"id": "U-07", "category": "U", "category_name": "UI/UX", "content": "하단 문구 Complete the level within the time limit to advance! 레벨 무관 고정", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "U-08", "category": "U", "category_name": "UI/UX", "content": "가로형일 때 레이싱 오브젝트가 2.5개는 보이도록", "source": "슬라이드 6 - 100인 레이싱 Marina Race 컨셉", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "가로형 기준 해상도 불명확. 2.5개 가시성의 정의 불명확", "missing_info": "기준 해상도(가로형 최소/최대 해상도)", "question": "가로형 기준 해상도는 무엇인가? 2.5개 보이도록은 최소 조건인가(더 보여도 되는가)?", "qa_prediction": "기준 해상도 미정의 시 → 특정 기기 해상도에서 오브젝트가 2개 이하 또는 3개 이상 온전히 보이는 레이아웃 오류 예측"}, {"id": "U-09", "category": "U", "category_name": "UI/UX", "content": "첫 진입: 캠페인 시작 후 로비 재접속 or 메타아이콘 클릭 시 팝업 자동으로 띄우면서 시작 / 1레벨 아이콘 컬러 / 하단 UI·1레벨에 게이지 생김 / 유저 프로필이 본인·왼-오-왼-오-왼-오 순으로 생김 / 상단 보물상자에 보상 토스트팝업(5초 동작 없을 시 닫힘) / 메타 첫 진입 시 튜토리얼", "source": "슬라이드 8 - 첫 진입", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "유저 프로필이 본인·왼-오-왼-오-왼-오 순으로 생김 — 본인 포함하면 7개인데 M-02(본인 제외 6명) 및 U-05(총 6명)와 숫자 불일치", "missing_info": "총 표시 프로필 수 최종 확정, 튜토리얼 재노출 조건", "question": "첫 진입 시 본인 포함하여 총 몇 명의 프로필이 표시되는가? 튜토리얼은 캠페인당 1회만 표시되는가?", "qa_prediction": "프로필 총 수 불일치(6 vs 7)로 → 한 슬롯이 비어있거나 오버플로우 발생하는 레이아웃 버그 예측"}, {"id": "U-10", "category": "U", "category_name": "UI/UX", "content": "레벨 올라갈 때: 게이지 모두 채운 상태에서 메타 진입 시 0.5초 Completed 표시 → 게이지·하단 UI 사라짐 → 클리어 레벨 오브젝트·아이콘 dim·4명은 이전 레벨·3명은 다음 레벨 → 다음 칸 레벨 표시 아이콘 컬러로 변경", "source": "슬라이드 9 - 레벨 올라갈 때 연출", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "연출 각 단계 간 전환 시간(애니메이션 duration) 불명확. 4명/3명 배치 기준이 불명확", "missing_info": "각 연출 단계 전환 애니메이션 시간, 4명/3명 배치 좌우 기준", "question": "레벨 올라가는 연출에서 Completed 이후 각 단계별 애니메이션 시간은 얼마인가?", "qa_prediction": "연출 타이밍 미정의 시 → 연출이 너무 빠르거나 느려서 유저가 레벨 전환을 인지 못하는 UX 버그 예측"}, {"id": "U-11", "category": "U", "category_name": "UI/UX", "content": "등수 팝업 후 연출: Congratulations 팝업(레벨 오브젝트 위에 cvs 할아버지 캐릭터, 팝업 중앙하단에 캠페인 타이머) / Later 선택 시 게이지 없이 본인 프로필만·zzz 페이드아웃·하단 UI 문구 변경·START! 버튼 / Go!/Start! 클릭 시 즉시 게이지·6명 프로필 왼-오 순으로 생성", "source": "슬라이드 10 - 등수 팝업 후 연출", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "cvs 할아버지가 LAVA RACE 테마의 Bottom_Character 에셋과 동일한지 불명확", "missing_info": "cvs 할아버지 캐릭터 에셋 명칭 및 출처", "question": "cvs 할아버지 캐릭터는 Bottom_Character 에셋과 동일한가?", "qa_prediction": "캐릭터 에셋 불명확 시 → 아티스트가 잘못된 에셋을 연동하여 캐릭터 표시 오류 발생 예측"}, {"id": "U-12", "category": "U", "category_name": "UI/UX", "content": "중간 보상 받는 경우: Completed! → 게이지·하단 UI 사라짐 → 리워드 팝업(중간 보상 아이콘들 없어진 상태) → collect로 닫힘 → 3명 다음 레벨·4명 이전 레벨 그대로 → Congratulations 팝업", "source": "슬라이드 11 - 중간 보상 받는 경우", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "리워드 팝업(중간 보상 아이콘들 없어진 상태) — 없어진 상태의 의미가 수령 완료 시각화인지, 해당 레벨 아이콘에서 보상 UI가 제거되는 것인지 불명확", "missing_info": "중간 보상 수령 후 레벨 오브젝트상 보상 아이콘 표시 여부", "question": "중간 보상 수령 후 해당 레벨 오브젝트에 표시되던 보상 아이콘은 완전히 사라지는가, 수령 완료 표시로 변경되는가?", "qa_prediction": "중간 보상 수령 상태 표시 불명확 시 → 유저가 보상을 이미 받았는지 알 수 없어 CS 문의 발생 예측"}, {"id": "U-13", "category": "U", "category_name": "UI/UX", "content": "Grand Prize 연출: 레이스 완료 팝업 → Congratulations! 타이틀·보물상자(글로우) → Open 클릭 시 open particle 연출 → 리워드 팝업(세로·가로형에 맞춰 표시) → 하단 UI·게이지·타 유저 프로필 사라지고 본인 유저 프로필이 보물상자로 점프", "source": "슬라이드 12 - 마지막 Grand Prize 받는 연출", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "본인 유저 프로필이 보물상자로 점프 — 점프 애니메이션 에셋이 별도 존재하는지, Spine 애니메이션인지 불명확(TA Spine 리스크 연계)", "missing_info": "점프 애니메이션 에셋 및 구현 방식", "question": "본인 프로필의 보물상자 점프 연출은 Spine 애니메이션으로 구현하는가? 해당 에셋이 A-02 목록에 없는데 별도 에셋이 추가되는가?", "qa_prediction": "Spine Runtime 버전 불일치(TA 리스크) 시 → 점프 연출이 재생되지 않거나 크래시 발생 예측"}, {"id": "U-14", "category": "U", "category_name": "UI/UX", "content": "Event Completed 팝업: 레이스 타이틀, 유저 본인 프로필에 왕관, Cool 버튼으로 닫기 및 메타아이콘 사라짐, 타이머 없음, Congrats to the final winners of the Race!", "source": "슬라이드 13 - Event Completed 팝업", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "U-15", "category": "U", "category_name": "UI/UX", "content": "레벨 탈락(Gem Restart OFF): 본인 프로필 떨어지는 연출(오브젝트 반대 방향) / Later 선택 시 쉬는중 표시·하단 start 버튼 / Go! 선택 시 해당 오브젝트에서 초기화된 게이지·유저 프로필들 생성", "source": "슬라이드 14 - 레벨 탈락 연출 - Gem Restart OFF", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "오브젝트 반대 방향의 의미가 레이스 방향 기준 역방향인지 화면 아래 방향인지 불명확. Anim_ProfileFall Spine 고비용 연산 TA 리스크 존재", "missing_info": "떨어지는 방향 및 최종 위치", "question": "프로필 낙하 방향은 화면 아래로 떨어지는 것인가, 레이스 오브젝트 이동 방향의 반대인가?", "qa_prediction": "Anim_ProfileFall Spine 고비용 연산(TA 리스크)으로 → 저사양 기기에서 낙하 연출 중 프레임 드롭 또는 애니메이션 스킵 발생 예측"}, {"id": "U-16", "category": "U", "category_name": "UI/UX", "content": "레벨 탈락(Gem Restart ON, 1레벨): 탈락 팝업 / Later 시 1레벨 쉬는중 / Go 시 1레벨에서 타 유저 프로필·게이지 생기며 시작 / X버튼·뒤로가기 클릭 시 Later 처리", "source": "슬라이드 15 - 레벨 탈락 연출 - Gem Restart ON", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "U-17", "category": "U", "category_name": "UI/UX", "content": "레벨 탈락(Gem Restart ON): 젬 소모하여 해당 레벨 처음부터 재시작 또는 1레벨부터 재시작 / Gem 부족 시 Gem shop 오픈 / X버튼 없음, CTA 반드시 클릭해야 닫힘 / 연출 도중 강종 시 다시 Too Slow 팝업 표시·메타아이콘 dim·restart·레드닷 유지", "source": "슬라이드 15 - 레벨 탈락 연출 - Gem Restart ON", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "Gem shop에서 Gem 구매 완료 시 자동으로 Restart 팝업으로 복귀하는지 불명확", "missing_info": "Gem shop에서 Gem 구매 후 플로우(자동 복귀 여부 및 Gem 비용 자동 차감 여부)", "question": "Gem shop에서 젬을 구매 완료한 후 자동으로 Restart 팝업으로 돌아오는가?", "qa_prediction": "Gem 구매 후 복귀 플로우 미정의 시 → 유저가 Gem shop에서 구매 후 Restart 팝업으로 돌아오지 못해 이탈하는 UX 버그 예측"}, {"id": "U-18", "category": "U", "category_name": "UI/UX", "content": "튜토리얼: 메타 처음 진입 시 또는 [?] 클릭 시 표시 / Start 또는 X버튼으로 닫음 / 세로형·가로형 필요", "source": "슬라이드 18 - 튜토리얼", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "처음 진입의 기준이 캠페인 전체 기간 내 1회인지, 앱 세션당 1회인지 불명확", "missing_info": "튜토리얼 노출 기준(캠페인당 1회 vs 세션당 1회), [?] 버튼 위치 및 크기", "question": "튜토리얼 자동 표시는 캠페인 전체 기간에서 최초 1회만인가?", "qa_prediction": "튜토리얼 노출 기준 불명확 시 → 앱 재실행마다 튜토리얼이 반복 표시되거나, 반대로 한 번도 표시되지 않는 버그 예측"}, {"id": "U-19", "category": "U", "category_name": "UI/UX", "content": "Eligible Bet 토스트팝업: RAISE BET TO <eligible bet> TO GET RACE POINTS BY SPINNING! / 현재 bet이 eligible bet 미만 시 3초간 표시 / 레이스 메타 아이콘 dim 처리·아이콘 순서는 맨앞 유지", "source": "슬라이드 24 - Eligible Bet 토스트팝업", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "토스트 팝업 표시 트리거 시점 불명확(스핀할 때마다인지, 메타 진입 시인지). 3초 경과 후 재트리거 조건 불명확", "missing_info": "토스트 팝업 표시 트리거 이벤트, 동일 세션 내 반복 표시 여부 및 최대 표시 횟수", "question": "Eligible Bet 미달 토스트 팝업은 언제 트리거되는가(스핀 시마다인가, 메타아이콘 클릭 시인가)?", "qa_prediction": "트리거 조건 불명확 시 → 스핀할 때마다 토스트가 반복 표시되어 UX 방해 버그 예측"}, {"id": "U-20", "category": "U", "category_name": "UI/UX", "content": "카드팩 - 인박스 지급 체크 유무에 따라 check inbox 태그 보여줌", "source": "슬라이드 12 - 마지막 Grand Prize 받는 연출", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "어드민에서 인박스 지급 체크가 무엇인지, check inbox 태그의 디자인 스펙 불명확. 이 항목이 어느 팝업에 연계되는지 불명확", "missing_info": "인박스 지급 체크 기능의 어드민 위치, check inbox 태그 디자인", "question": "인박스 지급 체크 설정은 어드민 레벨 세팅의 어디에 있는가? check inbox 태그는 보상 팝업의 카드팩 아이콘 위에 표시되는가?", "qa_prediction": "인박스 지급 체크 조건 불명확 시 → 카드팩 보상을 인박스로 지급해야 하는데 즉시 지급되는 지급 오류 예측"}, {"id": "S-01", "category": "S", "category_name": "시스템/서버/스테이지", "content": "레벨 개수 및 레벨별 제한시간 설정 가능(ms단위, 어드민에서 컨트롤)", "source": "슬라이드 3 - 100인 레이싱", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "S-02", "category": "S", "category_name": "시스템/서버/스테이지", "content": "Campaign에서 Passive Event로 메타 세팅 가능", "source": "슬라이드 26 - Admin", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "Passive Event의 정의 및 기존 시스템에서의 위치 불명확. 기존 Passive Event 시스템의 수정 범위 불명확", "missing_info": "Passive Event 시스템의 현재 구현 상태 및 수정 범위, 다른 Passive Event와 동시 활성화 가능 여부", "question": "Passive Event는 기존 시스템에 이미 존재하는 개념인가? 다른 Passive Event와 동시에 여러 개 활성화 가능한가?", "qa_prediction": "Passive Event 동시 활성화 정책 불명확 시 → 다른 이벤트와 동시 진행 시 우선순위 충돌 또는 누락 버그 예측"}, {"id": "S-03", "category": "S", "category_name": "시스템/서버/스테이지", "content": "어드민 - 18종 아트 에셋 업로드하여 캠페인 세팅 시 테마 선택", "source": "슬라이드 27 - Admin", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "A-02(클라 18종)와 A-03(어드민 15종)의 종류가 다른데, 이 항목의 18종이 어드민 업로드 기준인지 클라 기준인지 불명확. TA 리스크(에셋 규격 미준수 시 레이아웃 깨짐) 존재", "missing_info": "어드민 업로드 에셋이 15종인지 18종인지 최종 확정, 에셋별 해상도·포맷 규격서", "question": "어드민에 업로드하는 에셋은 A-03 기준 15종인가, 이 항목 기준 18종인가? 에셋 규격(해상도·포맷·파일크기 제한)이 별도로 정의되어 있는가?", "qa_prediction": "에셋 규격 미준수(TA 리스크) 시 → 어드민에서 업로드한 에셋이 게임 내에서 레이아웃 깨짐 또는 공백 렌더링 버그 예측"}, {"id": "S-04", "category": "S", "category_name": "시스템/서버/스테이지", "content": "Admin - Time Attack Race Setting: ID, 이름, 레벨 개수, Gem Restart 여부", "source": "슬라이드 29 - Admin", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "S-05", "category": "S", "category_name": "시스템/서버/스테이지", "content": "Admin - 밸런스 세팅: Credit·Gem Net RTP 설정 / Merge Card Album Card Pack은 net rtp 상관없이 종류·수량으로 세팅 / Gem Restart on/off / 메타 최소/최대 habit wager / 이벤트 기간(난이도·보상 계산식에 영향)", "source": "슬라이드 30 - Admin", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "최솟값 미만 또는 최댓값 초과 유저의 처리 방법(클램핑인지 참여 제외인지) 불명확", "missing_info": "최솟값·최댓값 범위 초과 유저의 habit wager 처리 방식", "question": "유저의 habit wager가 어드민에서 설정한 최솟값 미만이거나 최댓값 초과인 경우, 해당 유저를 참여 불가로 처리하는가 아니면 클램핑하여 참여시키는가?", "qa_prediction": "habit wager 범위 초과 처리 불명확 시 → 극단적 habit wager를 가진 유저에게 의도치 않은 난이도 또는 참여 불가 버그 예측"}, {"id": "S-06", "category": "S", "category_name": "시스템/서버/스테이지", "content": "Admin - 레벨 세팅: 레벨 개수, 레벨당 목표 wager 비중, 레벨당 제한 시간, 중간보상량 / 레벨 copy·삭제·추가 가능, 1개 이상 존재 필수, CSV Import 기능", "source": "슬라이드 31 - Admin", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "CSV Import 시 기존 레벨 설정 전체 덮어쓰기인지 병합인지 불명확. TA 리스크(CSV Import dry-run 유효성 검사 및 롤백 필요) 존재", "missing_info": "CSV Import 동작 방식(덮어쓰기 vs. 병합), Import 실패 시 롤백 여부, CSV 파일 포맷 명세", "question": "CSV Import 시 기존 레벨 설정을 전부 덮어쓰는가, 병합하는가? Import 중 오류 발생 시 이전 상태로 롤백되는가?", "qa_prediction": "CSV Import 실패 시 롤백 미구현(TA 리스크) 케이스에서 → 어드민에서 잘못된 CSV 업로드 후 레벨 설정 일부만 반영된 불완전 상태가 되는 심각한 운영 버그 예측"}, {"id": "S-07", "category": "S", "category_name": "시스템/서버/스테이지", "content": "Admin - 레벨 상세: Time Limit(ms) / Target Wager Rate(총 목표 wager에서 해당 비율) / 중간보상 세팅(해당 레벨 도달 시 즉시 지급, 최대 2종류, 리워드 타입: Coin·Gem·머지카드) / 3개 이상 세팅 시도 시 에러처리 / 중간보상 세팅 시 Grand Prize의 coin·gem 양은 중간보상량을 뺀 값", "source": "슬라이드 32 - Admin", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "중간보상으로 머지카드인 경우 Grand Prize에서의 차감 방식 불명확(머지카드는 coin·gem이 아님)", "missing_info": "중간보상으로 머지카드 설정 시 Grand Prize 보상 계산 방식", "question": "중간보상으로 머지카드를 설정한 경우 Grand Prize의 coin/gem 계산에 어떤 영향이 있는가?", "qa_prediction": "머지카드 중간보상 시 Grand Prize 계산 오류로 → 중간보상 머지카드 가치만큼 Grand Prize coin/gem이 잘못 차감되는 보상 불균형 버그 예측"}, {"id": "S-08", "category": "S", "category_name": "시스템/서버/스테이지", "content": "QA 치트 기능 - Set Level: 특정 레벨로 즉시 이동 / Add Race Point: 현재 레벨 게이지 강제로 채우기 / Reset User History: 레이스 참여 기록 초기화하여 최초 진입부터 재테스트", "source": "슬라이드 33 - QA 치트 기능", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "Add Race Point의 포인트 채우기 기준(정확히 목표치 or 임의값) 불명확", "missing_info": "Add Race Point의 포인트 채우기 기준, Reset User History 실행 시 중간보상 수령 이력도 초기화 여부", "question": "Add Race Point는 현재 레벨 목표 포인트를 정확히 채우는가, 아니면 임의 포인트를 추가하는가? Reset User History 실행 시 이미 수령한 중간보상 이력도 초기화되는가?", "qa_prediction": "Reset User History 시 중간보상 이력 미초기화 시 → QA에서 재테스트 시 중간보상이 다시 지급되지 않아 테스트 불가 증상 예측"}, {"id": "S-09", "category": "S", "category_name": "시스템/서버/스테이지", "content": "Analytics 측정 지표: Revenue, Session Length, Session Count, 레이싱 완주 비율", "source": "슬라이드 36 - Analytics", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "레이싱 완주 비율 — 완주의 기준(Grand Prize 수령 기준인지, 마지막 레벨 클리어 기준인지) 불명확", "missing_info": "각 지표의 측정 범위 및 집계 기준", "question": "레이싱 완주 비율의 분자/분모 정의는 무엇인가(완주 = Grand Prize 수령인가)?", "qa_prediction": "완주 기준 불명확 시 → QA에서 완주 이벤트 발화 타이밍 검증 불가, 운영 리포트에서 완주율 수치 왜곡 예측"}, {"id": "A-01", "category": "A", "category_name": "애니메이션/아트", "content": "기본 테마를 LAVA RACE로 제작", "source": "슬라이드 5 - 테마", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "A-02", "category": "A", "category_name": "애니메이션/아트", "content": "에셋 목록(클라): Background, Title_Main, Race_Object, Race_Point_Icon, Bottom_UI_Vertical, Meta_Icon_down, Grand_Prize_Chest, Title_Congratulations, Title_Too_Slow, Race_Level_Icon, Background_Popup, Bottom_Character, Bottom_UI_Horizontal, Meta_Icon_up, Title_Kudo, Popup_Outline, Meta_Icon_Kudo, Background_Popup_trophie", "source": "슬라이드 7 - 100인 레이싱 에셋 목록", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "A-02 목록(18종)과 A-03 목록(15종)에 공통 에셋명이 있으나 클라·어드민 버전이 명확히 구분되어 있지 않음. TA 리스크(Atlas 크기 초과, 에셋 규격 미준수) 존재", "missing_info": "클라이언트용 에셋 납품 규격(해상도·포맷·Atlas 배치 기준)", "question": "A-02 18종 중 Spine 애니메이션 에셋이 포함되어 있는가? 에셋별 납품 해상도 규격서가 별도로 제공되는가?", "qa_prediction": "Atlas 크기 초과(TA 리스크) 시 → 게임 실행 중 텍스처 로드 실패로 에셋 공백 렌더링 또는 크래시 예측"}, {"id": "A-03", "category": "A", "category_name": "애니메이션/아트", "content": "에셋 목록(어드민): Background_Vertical, Background_Horizontal, Background_Popup, Title_Main, Title_Congratulations, Title_Too_Slow, Background_Popup_Trophie, Race_Object, Race_Object_Dim, Race_Point_Icon, Race_Level_Icon_Color, Race_Level_Icon_Mono, Bottom_UI, Meta_Icon, Grand_Prize_Chest (15종)", "source": "슬라이드 27 - Admin", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "S-03(18종)과 이 항목의 15종 불일치. TA 리스크(어드민 18종 에셋 규격 미준수 위험) 존재", "missing_info": "어드민 에셋 최종 종수(15종인지 18종인지), 어드민 업로드 파일 포맷·최대 용량 제한", "question": "어드민에 업로드하는 에셋이 S-03 기준 18종인지, A-03 기준 15종인지 최종 확정이 필요하다. 3종 차이는 어디서 발생하는가?", "qa_prediction": "어드민 에셋 종수 불일치 시 → 어드민 UI에서 일부 에셋 업로드 슬롯이 누락되거나 불필요한 슬롯이 표시되는 어드민 기능 오류 예측"}, {"id": "A-04", "category": "A", "category_name": "애니메이션/아트", "content": "메타아이콘 레이스 포인트 획득 연출: 메타아이콘 전체 글로우 + 아이콘 자체가 잠깐 커졌다 작아지는 연출", "source": "슬라이드 20 - 메타아이콘 레이스 포인트 획득 연출", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "A-05", "category": "A", "category_name": "애니메이션/아트", "content": "Kudo 알림 1: Hurry! Only 1 minute left! (1분 남았을 때 1회) — 레이싱 타이틀·레이싱 메타아이콘", "source": "슬라이드 21 - Kudo 알림 1", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "1분 남은 시점 판정이 클라이언트 기준인지 서버 기준인지 불명확(TA 리스크 연계)", "missing_info": "1분 판정 기준(서버/클라이언트), 앱 비활성 상태에서의 Kudo 알림 처리 방식", "question": "Kudo 알림은 인게임 UI 알림인가, 모바일 푸시 알림인가? 1분 판정은 서버 시각 기준인가?", "qa_prediction": "네트워크 지연 환경에서 서버/클라이언트 시각 불일치 시 → 1분이 남지 않았는데 알림이 뜨거나 1분이 지난 후 뜨는 타이밍 오류 예측"}, {"id": "A-06", "category": "A", "category_name": "애니메이션/아트", "content": "Kudo 알림 2: You are in! Check your results now! (게이지 전부 채우고 타이머 내 클리어 시) — 레이싱 타이틀·레이싱 메타아이콘", "source": "슬라이드 22 - Kudo 알림 2", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "A-07", "category": "A", "category_name": "애니메이션/아트", "content": "Kudo 알림 3: Times up. Try again! (타이머 내 레벨 클리어 실패 시) — 레이싱 타이틀·레이싱 메타아이콘", "source": "슬라이드 23 - Kudo 알림 3", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "L-01", "category": "L", "category_name": "로직/로비", "content": "마지막 레벨 완료 보상(RTP 2%) / 유저별 habit에 따라 다른 보상 / 어드민에서 Net RTP 코인·젬별로 세팅 / 코인·젬·머지카드 세팅 가능", "source": "슬라이드 3 - 100인 레이싱 보상", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "RTP 2%가 고정값인지 어드민 세팅값인지 불명확", "missing_info": "최종보상 계산 시 habit wager가 개인별로 적용되는 상세 공식, RTP 2%의 고정 여부", "question": "RTP 2%는 어드민에서 설정 가능한 값인가(S-05의 Net RTP와 동일한가)?", "qa_prediction": "RTP 고정 vs. 가변 불명확 시 → 어드민에서 RTP 변경 후 보상이 의도와 다르게 계산되는 밸런스 버그 예측"}, {"id": "L-02", "category": "L", "category_name": "로직/로비", "content": "특정 레벨에 최대 2종류로 중간 보상 추가 가능 / UI상 특정 레벨에 있는 보상은 그 이전 레벨을 클리어하고 해당 레벨 도달 즉시 받음(Later·Go 선택 전에) / 중간보상 한 번 받으면 restart해도 재지급 없음", "source": "슬라이드 3 - 100인 레이싱 보상", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "그 이전 레벨을 클리어하고 해당 레벨 도달 즉시 받음(Later·Go 선택 전에) — 도달 즉시가 해당 레벨 오브젝트에 진입하는 순간인지, 메타 팝업이 열리는 순간인지 불명확", "missing_info": "중간보상 수령 정확한 트리거 시점(서버 처리 기준)", "question": "중간보상 수령의 서버 처리 시점은 메타아이콘을 클릭하는 순간인가(E-01 참조), 해당 레벨에 도달하는 순간인가?", "qa_prediction": "중간보상 트리거 시점 불명확 시 → 네트워크 오류 등으로 보상 미지급 또는 중복 지급 발생 케이스에서 재현 불가 버그 예측"}, {"id": "L-03", "category": "L", "category_name": "로직/로비", "content": "모든 보상은 앞 3자리 뒤에는 버림처리", "source": "슬라이드 3 - 100인 레이싱 보상", "verdict": "🔴", "verdict_label": "착수불가", "ambiguity": "모든 보상은 앞 3자리 뒤에는 버림처리 — 앞 3자리의 정의가 유효숫자 3자리인지, 특정 단위 이하 버림인지 불명확. TA 리스크(보상 버림 처리 기준 모호) 명시", "missing_info": "버림 처리의 정확한 기준, 적용 대상(coin만인지 gem도 포함인지)", "question": "앞 3자리 뒤에는 버림이 유효숫자 3자리(123,456 → 123,000) 기준인가? gem(소량)에도 동일하게 적용되는가?", "qa_prediction": "버림 기준 모호(TA 리스크)로 인해 → 개발자별 해석이 달라 동일 보상값이 다르게 버림 처리되는 정합성 버그, 특히 gem 소량 보상에서 0 또는 비정상 값 지급 예측"}, {"id": "L-04", "category": "L", "category_name": "로직/로비", "content": "레이스 도중 유저 레벨 구간 변동이 되어도 메타 처음 입장 시 eligible bet 고정", "source": "슬라이드 24 - Eligible Bet 토스트팝업", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "L-05", "category": "L", "category_name": "로직/로비", "content": "메타아이콘 각 상태: 진행중(1분 이하), 진행중(1분 초과), 쉬는중, 레벨 완료, 레벨 탈락, Lock 상태", "source": "슬라이드 19 - 메타아이콘", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "Lock 상태의 발생 조건 불명확(이벤트 미참여 대상 유저인지, 특정 레벨 잠금인지). 각 상태 간 전환 우선순위 불명확", "missing_info": "Lock 상태 발생 조건, 상태 간 전환 우선순위", "question": "Lock 상태는 어떤 유저에게 표시되는가(M-01 대상이 아닌 유저인가)? 레벨 탈락 후 Later를 선택한 상태는 쉬는중과 동일한 아이콘 상태인가?", "qa_prediction": "Lock 상태 조건 불명확 시 → 참여 가능한 유저에게도 Lock 아이콘이 표시되거나 참여 불가 유저에게 진행 중 아이콘이 표시되는 버그 예측"}, {"id": "L-06", "category": "L", "category_name": "로직/로비", "content": "레벨 완료한 경우 메타 들어가지 않고 캠페인 종료 시 중간보상 포함 보상 지급하지 않음", "source": "슬라이드 19 - 메타아이콘", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "레벨 완료 후 메타 미진입으로 캠페인이 종료된 경우 중간보상까지 미지급이 의도인지 재확인 필요", "missing_info": "중간보상 미지급이 의도된 패널티인지 확인, 유저에게 미지급 사실 고지 여부", "question": "레벨 완료 후 메타 미진입으로 캠페인이 종료된 경우 중간보상도 미지급이 맞는가?", "qa_prediction": "중간보상 미지급이 의도인지 불명확 시 → QA에서 이 케이스를 버그로 판정할지 정상으로 판정할지 기준 수립 불가 증상 예측"}, {"id": "E-01", "category": "E", "category_name": "예외/엣지케이스", "content": "연출 도중 강종 시 Later로 처리 / 중간보상은 메타 아이콘 누른 순간 수령 처리", "source": "슬라이드 10 - 등수 팝업 후 연출", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "E-02", "category": "E", "category_name": "예외/엣지케이스", "content": "Grand Prize 팝업 연출 도중 강종 시 Open 클릭 여부 상관없이 메타 진입 시 수령 처리 및 event complete 팝업 표시", "source": "슬라이드 12 - 마지막 Grand Prize 받는 연출", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "E-03", "category": "E", "category_name": "예외/엣지케이스", "content": "Gem Restart ON 탈락 연출 도중 강종 시 다시 Too Slow 팝업 표시 / 메타아이콘 dim·restart·레드닷 유지", "source": "슬라이드 15 - 레벨 탈락 연출 - Gem Restart ON", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "E-04", "category": "E", "category_name": "예외/엣지케이스", "content": "캠페인 종료 후 Break your streak·Restart·Go·Later 버튼 누를 경우 에러 팝업 후 이벤트 종료 처리", "source": "슬라이드 17 - 캠페인 종료 시 에러 팝업", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "에러 팝업의 메시지 내용 불명확. 이벤트 종료 처리 시 해당 레벨의 진행 중이던 보상 처리 방식 불명확", "missing_info": "에러 팝업 메시지 텍스트, 캠페인 종료 후 진행 중 보상 처리 방침", "question": "캠페인 종료 후 버튼 클릭 시 표시되는 에러 팝업의 메시지 텍스트는 무엇인가?", "qa_prediction": "에러 팝업 메시지 미정의 시 → 빈 팝업 표시 버그 예측"}, {"id": "E-05", "category": "E", "category_name": "예외/엣지케이스", "content": "Grand Prize 팝업 표시 중 캠페인 종료 후 Open 클릭 시 리워드 연출 및 event completed 팝업까지 정상 표시", "source": "슬라이드 17 - 캠페인 종료 시 에러 팝업", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "E-06", "category": "E", "category_name": "예외/엣지케이스", "content": "Event Completed 팝업 표시 중 캠페인 종료 후 Cool! 버튼 클릭 시 에러 팝업 없이 팝업 닫고 이벤트 종료 처리", "source": "슬라이드 17 - 캠페인 종료 시 에러 팝업", "verdict": "✅", "verdict_label": "착수가능", "ambiguity": "", "missing_info": "", "question": "", "qa_prediction": ""}, {"id": "E-07", "category": "E", "category_name": "예외/엣지케이스", "content": "어드민 레벨 상세에서 중간보상 3개 이상 세팅 시도 시 에러처리", "source": "슬라이드 32 - Admin 레벨 상세", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "에러 처리의 방식(버튼 비활성화인지 저장 시도 후 에러 메시지인지) 불명확", "missing_info": "에러 처리 방식(버튼 비활성화 vs. 저장 후 에러 메시지), 에러 메시지 텍스트", "question": "3번째 중간보상 추가 시도 시 에러는 추가 버튼 자체를 비활성화하는 방식인가, 추가 후 저장 시 에러 메시지를 표시하는 방식인가?", "qa_prediction": "에러 처리 방식 불명확 시 → 3번째 항목이 입력은 되지만 저장이 안 되어 어드민 사용자에게 혼란 주는 UX 버그 예측"}, {"id": "E-08", "category": "E", "category_name": "예외/엣지케이스", "content": "Gem Restart ON 레벨 탈락 팝업: X버튼 없음, CTA 반드시 클릭해야 닫힘 / X버튼·뒤로가기 클릭 시 Later로 처리(1레벨 탈락 팝업 한정)", "source": "슬라이드 15 - 레벨 탈락 연출 - Gem Restart ON", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "1레벨 외 Gem Restart ON 탈락 팝업에서는 OS 뒤로가기 버튼 처리가 어떻게 되는지 불명확", "missing_info": "1레벨 외 Gem Restart ON 탈락 팝업에서 OS 뒤로가기 버튼 처리 방식", "question": "2레벨 이상에서 Gem Restart ON 탈락 팝업 표시 중 OS 뒤로가기 버튼을 클릭하면 어떻게 처리되는가(무시인가, Later 처리인가)?", "qa_prediction": "OS 뒤로가기 미처리 시 → 2레벨 이상 탈락 팝업에서 뒤로가기 클릭 시 앱이 백그라운드로 이동하거나 예외 처리 없이 팝업이 닫히는 버그 예측"}, {"id": "E-09", "category": "E", "category_name": "예외/엣지케이스", "content": "레벨 탈락(Gem Restart OFF/ON) X버튼 클릭 시 Later로 처리 / 연출 도중 강종 시 Later 처리", "source": "슬라이드 14 - 레벨 탈락 연출 - Gem Restart OFF", "verdict": "⚠️", "verdict_label": "확인필요", "ambiguity": "U-17에서 Gem Restart ON 탈락 팝업에는 X버튼이 없다고 명시되어 있어 E-09와 상충", "missing_info": "Gem Restart ON 탈락 팝업의 X버튼 존재 여부 최종 확정", "question": "Gem Restart ON 탈락 팝업에 X버튼이 있는가 없는가? U-17(X버튼 없음)과 E-09(X버튼 → Later 처리) 중 어느 것이 맞는가?", "qa_prediction": "X버튼 존재 여부 상충으로 → 구현과 기획 불일치 버그 및 QA 테스트 케이스 작성 불가 예측"}], "developer": {"impact_scope": [{"module": "Meta Campaign / Passive Event 등록 시스템", "change_type": "수정", "is_risky": true, "detail": "기존 Campaign의 Passive Event 프레임워크에 Time Attack Race 타입을 추가. 공용 캠페인 스케줄러·트리거 로직에 신규 분기가 추가되므로 기존 Passive Event(Habit Wager 포함) 동작에 사이드 이펙트 위험."}, {"module": "Eligible Bet 산정 / 유저 레벨 구간 고정", "change_type": "신규", "is_risky": true, "detail": "메타 최초 입장 시점의 유저 레벨을 스냅샷으로 저장하고 이후 레벨 변동을 무시하는 로직 필요. 기존 레벨 기반 Bet 검증 로직(슬롯 스핀 파이프라인)과 충돌 가능성 있음."}, {"module": "Wager 포인트 적립 파이프라인 (Spin Bet 처리)", "change_type": "공용 수정", "is_risky": true, "detail": "스핀 Bet 발생 시 Bet/100,000 환산 후 해당 레벨 포인트에 적립하는 훅 추가. 기존 Habit Wager 집계 파이프라인과 동일 경로를 공유할 경우 이중 집계 또는 누락 위험."}, {"module": "레벨 클리어 / 탈락 판정 및 상태 머신", "change_type": "신규", "is_risky": false, "detail": "레벨별 제한시간(ms 단위) 타이머, 포인트 달성 여부, Gem Restart ON/OFF 분기를 포함한 레벨 상태 머신 신규 구현."}, {"module": "Gem Restart 비용 계산 및 젬 차감", "change_type": "신규", "is_risky": true, "detail": "Gem Restart 비용 = (1레벨~현재 레벨 목표 wager 합) / 69333.333 * Gem Restart Multi. 부동소수점 나눗셈 정밀도 문제 및 젬 차감 실패 시 롤백 처리 필요."}, {"module": "중간보상 지급 시스템", "change_type": "수정", "is_risky": true, "detail": "특정 레벨 도달 즉시 지급, Restart 후 재지급 방지를 위한 수령 이력 플래그 필요. 기존 보상 지급 시스템에 분기 추가 시 다른 이벤트 보상 로직과 충돌 가능."}, {"module": "최종 보상 산정 (Net RTP 기반)", "change_type": "신규", "is_risky": false, "detail": "최종 보상 = {(target wager) - (Event Duration)*(habit wager)} * Net RTP. 앞 3자리 뒤 버림 처리 포함. habit wager 조회 실패 시 fallback 정책 명확화 필요."}, {"module": "어드민 - Time Attack Race Setting UI", "change_type": "신규", "is_risky": false, "detail": "레벨 추가·삭제·copy·CSV Import, 18종 아트 에셋 업로드, 중간보상 최대 2종 제한 에러 처리 포함."}, {"module": "대상 유저 필터링 (Level >= 30 & 14일 내 스핀 기록)", "change_type": "신규", "is_risky": true, "detail": "캠페인 대상 산정 시 최근 14일 스핀 기록 조회는 대규모 쿼리 부하 가능. 배치 처리 주기 및 인덱스 최적화 필요."}, {"module": "스핀 블로커 (레벨 잠금 게이트)", "change_type": "신규", "is_risky": true, "detail": "목표 포인트 달성 후 메타 진입 전까지 다음 레벨 잠금 처리. 스핀 요청 파이프라인에 게이트 체크 추가 시 기존 스핀 블로커 로직과 우선순위 충돌 가능."}], "impl_risks": [{"feature": "Habit Wager 기반 Target Wager 산정 및 최종 보상 계산", "complexity": "High", "risk": "habit wager 값이 없는 유저 진입 차단이 이중으로 보장되어야 하며, 파라미터 변경이 캠페인 도중에 이뤄질 경우 이미 진행 중인 유저의 target wager 정합성 리스크 존재."}, {"feature": "Gem Restart 비용 공식 (소수점 나눗셈 + Multi 적용)", "complexity": "High", "risk": "69333.333이라는 비표준 제수는 부동소수점 오차를 누적시킴. 레벨 수가 많아질수록 누적 wager 합 계산 비용도 증가. 젬 차감과 포인트 리셋이 원자적으로 처리되지 않으면 부분 실패 시 유저 피해 발생."}, {"feature": "ms 단위 제한시간 타이머 및 강종(앱 종료) 처리", "complexity": "High", "risk": "클라이언트 타이머와 서버 타이머 간 시간 오차 발생 시 판정 불일치. 강종 후 Later 처리 시 서버 측 타이머가 계속 흐르는 경우 재접속 시 즉시 탈락 처리될 수 있으므로 일시정지·재개 시점 동기화 프로토콜 설계 필요."}, {"feature": "클럽원·친구 프로필 조회 (실시간 1일 내 접속 필터)", "complexity": "Med", "risk": "레벨 입장마다 실시간 조회 시 DB 부하 집중. 캐싱 TTL을 너무 길게 잡으면 이미 탈퇴한 클럽원이 노출되는 UX 이슈 발생."}, {"feature": "중간보상 수령 이력 관리 (Restart·탈락 후 재지급 방지)", "complexity": "Med", "risk": "보상 수령 플래그를 캠페인 단위로 관리할 경우, 동일 캠페인 내 재시작 시 플래그 초기화 여부 판단 오류 가능. 레벨 단위 플래그 스키마 설계 및 마이그레이션 계획 필요."}, {"feature": "초과 포인트 미이월 처리", "complexity": "Low", "risk": "목표 달성 시점에 포인트를 정확히 목표치로 clamp하는 처리가 서버·클라 양쪽에서 각각 적용될 경우 표기 불일치 발생 가능."}, {"feature": "보상 앞 3자리 뒤 버림 처리", "complexity": "Low", "risk": "버림 기준이 앞 3자리 유효숫자 이후인지 특정 단위 이하 버림인지 기획 문서 상 모호. 잘못 구현 시 유저에게 과·저지급 발생."}, {"feature": "어드민 CSV Import (레벨 세팅 일괄 등록)", "complexity": "Med", "risk": "잘못된 CSV 포맷 업로드 시 레벨 세팅 전체 덮어쓰기 위험. Import 전 dry-run 검증 및 롤백 기능 없이 배포하면 운영 실수로 라이브 이벤트 데이터 손상 가능."}], "impl_order": ["1순위: Eligible Bet 스냅샷 및 대상 유저 필터 (DB 스키마·인덱스 설계) — 이후 모든 기능이 유저 자격 판단에 의존하며, 설계 변경 시 파급 범위가 가장 큼", "2순위: 스핀 Bet → 레벨 포인트 적립 파이프라인 및 스핀 블로커 게이트 — 핵심 수익 지표(Wager 집계)의 정확성이 전체 Economy 공식의 입력값이므로 조기 검증 필수", "3순위: 레벨 상태 머신 (타이머·클리어·탈락·Gem Restart 분기) — 게임 플로우 전체를 관통하는 핵심 로직으로 서버·클라 동시 구현 및 통합 테스트 리드타임이 가장 긺", "4순위: Gem Restart 비용 계산 및 젬 차감 트랜잭션 — Economy 공식 의존성이 있으며, 트랜잭션 원자성 보장 구현에 충분한 시간 필요", "5순위: 중간보상 수령 이력 관리 및 최종 보상 산정 — 보상 지급 로직은 포인트 적립·레벨 상태 머신이 확정된 이후 구현해야 재작업 최소화", "6순위: 어드민 Time Attack Race Setting UI (CSV Import·에셋 업로드 포함) — 내부 운영 도구로 서비스 블로커 아님, 그러나 QA 전 어드민 세팅 완료가 필요하므로 병렬 개발 권장", "7순위: 클라이언트 연출 (강종 Later 처리·레벨 클리어·탈락 애니메이션) — 서버 API 확정 후 구현 가능"], "tech_notes": ["Spin Bet 집계 파이프라인에 Time Attack Race 훅을 추가할 때 기존 Habit Wager 집계 로직과 트랜잭션 경계가 겹치지 않도록 반드시 격리된 이벤트 핸들러로 분리하고, 통합 테스트에서 이중 집계 여부를 명시적으로 검증해야 한다.", "ms 단위 제한시간 판정은 클라이언트 시간을 신뢰하지 않고 서버 수신 시각 기준으로만 판정해야 하며, 네트워크 지연 허용치(grace period)를 기획과 합의 후 어드민 파라미터로 관리해야 한다.", "Gem Restart 비용 공식의 제수 69333.333은 부동소수점 표현 불가 값이므로 서버 측에서 정수 스케일링 또는 Decimal 타입으로 연산하고, 클라이언트 표시값과 서버 실제 차감액이 반드시 일치하는지 계약 테스트(contract test)로 검증해야 한다.", "최근 14일 스핀 기록 및 1일 내 접속 유저 조회는 캠페인 대상 산정과 레벨 입장 시 각각 호출되므로, 쿼리 실행 계획 및 커버링 인덱스 설계를 서버 개발 착수 전 DBA와 사전 리뷰해야 한다.", "어드민 CSV Import는 반드시 트랜잭션 내 dry-run 유효성 검사 → 성공 시 commit, 실패 시 전체 rollback 방식으로 구현해야 라이브 이벤트 데이터 손상을 방지할 수 있다.", "캠페인 종료 후 버튼 입력 에러 처리는 클라이언트 로컬 시간이 아닌 서버 응답 기준으로 종료 여부를 판단해야 하며, 시간대(timezone) 불일치로 인한 조기·지연 종료 엣지케이스를 QA 체크리스트에 포함해야 한다."]}, "artist": {"ui_ux_flow": ["앱 진입 → (메타 첫 진입 감지) → 튜토리얼 팝업 자동 표시 (세로형·가로형 각각 대응)", "튜토리얼 팝업 → (확인/닫기) → 메인 레이싱 메타 화면 (세로 통일 레이아웃)", "메인 화면 로드 → 상단 보물상자(Grand_Prize_Chest, 웹이미지 연동) 표시", "보물상자 영역 탭 → (토스트 팝업) → 보상 내용 3초 표시 후 자동 소멸", "메인 화면 → 경계선 아래 스크롤 → 레벨 목록 스크롤 (배경 고정, 레벨 오브젝트만 이동)", "레벨 표시 → 현재 레벨(컬러) / 미도달 레벨(모노톤) / 지난 레벨(컬러+Dim) 상태 분기", "현재 레벨 → 본인 프로필 중앙 최전방 표시 + 양옆 각 3명(총 6명) 프로필 표시", "중앙 하단 시간 게이지 표시 → (잔여 시간 30초 미만 감지) → 게이지 색상 빨간색 전환", "레이스 포인트 획득 → 메타아이콘 글로우 + 커졌다 작아지는 연출", "레벨 클리어 → 0.5초 Completed 텍스트 표시 → Congratulations 팝업 (cvs 할아버지 캐릭터 오버레이)", "Congratulations 팝업 → (닫기) → 다음 레벨 진입", "Grand Prize 레벨 도달 → Open 버튼 표시 → Open 탭 → Open Particle 연출 → 리워드 팝업", "이벤트 전체 완료 → Event Completed 팝업 (레이스 타이틀 + 본인 프로필 왕관)", "레벨 탈락 (Gem Restart OFF) → 본인 프로필 떨어지는 연출 → 탈락 처리", "레이스 진행 중 → 메타아이콘 현재 레벨 숫자·타이머 표시", "레이스 쉬는 중 → 메타아이콘 zzz 모션 반복 재생", "1분 남았을 때 → Kudo 알림 1 (Hurry! Only 1 minute left!)", "레벨 클리어 시 → Kudo 알림 2 (You are in! Check your results now!)", "타임아웃 시 → Kudo 알림 3 (Times up. Try again!)", "Eligible Bet 조건 충족 → 토스트 팝업 3초 표시 후 자동 소멸"], "assets": {"images": [{"name": "Background_Vertical", "usage": "세로형 메인 배경 (LAVA RACE 테마)", "size": "1080x1920", "is_new": true}, {"name": "Background_Horizontal", "usage": "가로형 메인 배경 (LAVA RACE 테마, 레이싱 오브젝트 2.5개 노출 기준)", "size": "1920x1080", "is_new": true}, {"name": "Background_Popup", "usage": "공용 팝업 배경", "size": "900x1200", "is_new": true}, {"name": "Background_Popup_Trophie", "usage": "Event Completed 팝업 트로피 배경", "size": "900x1200", "is_new": true}, {"name": "Title_Main", "usage": "메인 화면 상단 타이틀", "size": "800x200", "is_new": true}, {"name": "Title_Congratulations", "usage": "레벨 클리어 팝업 타이틀", "size": "700x160", "is_new": true}, {"name": "Title_Too_Slow", "usage": "레벨 탈락 팝업 타이틀", "size": "700x160", "is_new": true}, {"name": "Title_Kudo", "usage": "Kudo 알림 배너 타이틀 공용 배경", "size": "600x140", "is_new": true}, {"name": "Race_Object", "usage": "레이싱 레벨 오브젝트 컬러 버전", "size": "300x300", "is_new": true}, {"name": "Race_Object_Dim", "usage": "레이싱 레벨 오브젝트 Dim 버전 (지난 레벨)", "size": "300x300", "is_new": true}, {"name": "Race_Level_Icon_Color", "usage": "레벨 번호 아이콘 컬러", "size": "120x120", "is_new": true}, {"name": "Race_Level_Icon_Mono", "usage": "레벨 번호 아이콘 모노톤 (미도달 레벨)", "size": "120x120", "is_new": true}, {"name": "Race_Point_Icon", "usage": "레이스 포인트 획득 아이콘", "size": "80x80", "is_new": true}, {"name": "Grand_Prize_Chest", "usage": "상단 보물상자 이미지 (웹이미지 연동 슬롯)", "size": "400x400", "is_new": true}, {"name": "Bottom_UI", "usage": "하단 공용 UI 프레임 (어드민·세로/가로 통합)", "size": "1080x300", "is_new": true}, {"name": "Bottom_UI_Vertical", "usage": "하단 UI 세로형 전용 (클라)", "size": "1080x300", "is_new": false}, {"name": "Bottom_UI_Horizontal", "usage": "하단 UI 가로형 전용 (클라)", "size": "1920x200", "is_new": false}, {"name": "Bottom_Character", "usage": "하단 cvs 할아버지 캐릭터 (Congratulations 팝업 오버레이)", "size": "600x800", "is_new": true}, {"name": "Meta_Icon_up", "usage": "메타아이콘 레이스 진행 중 상태 베이스", "size": "200x200", "is_new": true}, {"name": "Meta_Icon_down", "usage": "메타아이콘 쉬는 중 상태 베이스", "size": "200x200", "is_new": true}, {"name": "Meta_Icon_Kudo", "usage": "Kudo 알림 3종 메타아이콘 썸네일", "size": "120x120", "is_new": true}, {"name": "Popup_Outline", "usage": "팝업 공용 테두리 프레임 장식", "size": "920x1220", "is_new": true}], "animations": [{"name": "Anim_MetaIcon_ZZZ", "type": "Spine / Lottie 루프", "trigger": "레이스 쉬는 중 — 메타아이콘 idle 상태"}, {"name": "Anim_MetaIcon_PointGlow", "type": "Spine / Lottie 1회", "trigger": "레이스 포인트 획득 시 글로우 + 아이콘 Scale Up→Down"}, {"name": "Anim_LevelCompleted_Flash", "type": "UI 트위닝 0.5초", "trigger": "레벨 클리어 직후 Completed 텍스트 표시"}, {"name": "Anim_ProfileFall", "type": "Spine / 물리 시뮬레이션", "trigger": "레벨 탈락 (Gem Restart OFF) — 본인 프로필 낙하"}, {"name": "Anim_CrownAppear", "type": "Spine / Lottie 1회", "trigger": "Event Completed 팝업 — 본인 프로필 왕관 장착"}, {"name": "Anim_TimerGauge_RedPulse", "type": "UI 트위닝 루프", "trigger": "잔여 시간 30초 미만 — 게이지 빨간색 펄스"}, {"name": "Anim_GrandPrize_Open", "type": "Spine / Particle 1회", "trigger": "Grand Prize Open 버튼 탭 — 보물상자 오픈 파티클"}, {"name": "Anim_Kudo_SlideIn", "type": "UI 트위닝 슬라이드", "trigger": "Kudo 알림 3종 각각 트리거 조건"}, {"name": "Anim_Toast_FadeInOut", "type": "UI 트위닝 Fade", "trigger": "보물상자 토스트·Eligible Bet 토스트"}], "effects": [{"name": "FX_GrandPrize_OpenParticle", "trigger": "Grand Prize Open 버튼 클릭", "note": "보물상자 개봉 파티클 — 리워드 팝업 전환 전 재생, LAVA 테마 불꽃 파티클 권장"}, {"name": "FX_MetaIcon_Glow", "trigger": "레이스 포인트 획득", "note": "메타아이콘 외곽 글로우 이펙트, 1회 재생 후 자동 소멸"}, {"name": "FX_LevelDim_Overlay", "trigger": "레벨 통과 후 상태 전환", "note": "지난 레벨 오브젝트에 Dim 오버레이 적용 (알파 40% 검정 마스크)"}, {"name": "FX_ProfileCrown_Sparkle", "trigger": "Event Completed 팝업 왕관 표시", "note": "왕관 주변 소형 스파클 파티클"}, {"name": "FX_Chest_WebImage_Shimmer", "trigger": "메인 화면 보물상자 idle", "note": "웹이미지 로드 완료 후 shimmer 루프"}], "fonts": ["Pretendard Bold (한글 UI 텍스트, 레벨 번호, 타이머)", "Pretendard Regular (토스트·설명 보조 텍스트)", "Barlow Condensed ExtraBold (영문 타이틀: Congratulations, Too Slow, Kudo 등)", "Barlow Condensed Regular (영문 보조 UI: 버튼, 레이블)"]}, "design_guidelines": ["전체 레이아웃은 세로(Portrait) 통일 — 가로 기기도 세로 포맷 UI 적용, 가로형은 레이싱 오브젝트 2.5개 가시성 확보 시에만 별도 가로 배경 사용", "기본 테마는 LAVA RACE — 용암·화염 모티프 컬러(#FF4500, #FF8C00, #1A1A1A) 기반", "레벨 상태 컬러 규칙: 현재 레벨 = 풀컬러 + 강조 테두리 / 미도달 = 모노톤(그레이스케일) / 지난 레벨 = 컬러 + Dim(알파 40% 오버레이)", "시간 게이지: 평상시 LAVA 테마 오렌지 계열, 30초 미만 시 #FF0000 전환 + 펄스 애니메이션으로 긴장감 강조", "프로필 레이아웃: 현재 레벨 행에 7명 표시 — 본인 중앙 최전방(Z-order 최상위), 양옆 각 3명 대칭 배치, 본인 프로필 크기는 타인 대비 120% 스케일", "팝업 공통: Background_Popup 위에 Popup_Outline 프레임 오버레이", "Congratulations 팝업: cvs 할아버지 캐릭터(Bottom_Character)를 레벨 오브젝트 위쪽에 오버레이", "메타아이콘: 레이스 진행 중 Meta_Icon_up 사용 / 쉬는 중 Meta_Icon_down + ZZZ 루프 애니", "Kudo 알림: 화면 상단 슬라이드인 배너 형식, 3종 메시지별 아이콘(Meta_Icon_Kudo) + Title_Kudo 배경 사용", "Grand Prize 파티클(FX_GrandPrize_OpenParticle)은 리워드 팝업 전환 전 100% 재생 완료 후 전환 — 연출 끊김 방지", "어드민 에셋은 클라 에셋과 별도 규격으로 납품 — 어드민 15종 목록(A-03) 기준 별도 Figma 시트 관리"], "total_asset_days": 18, "asset_summary": "LAVA RACE 테마 기반 이미지 22종·애니메이션 9종·이펙트 5종으로 구성, 클라·어드민 이원화 납품 포함 약 18MD 예상 (Grand Prize 파티클·탈락 연출 난이도 가중)"}, "ta": {"asset_specs": [{"name": "Background_Vertical", "format": "PNG", "resolution": "1080x1920", "atlas": "N", "memory_est": "ASTC 4x4 압축 후 ~504KB"}, {"name": "Background_Horizontal", "format": "PNG", "resolution": "1920x1080", "atlas": "N", "memory_est": "ASTC 4x4 압축 후 ~504KB"}, {"name": "Background_Popup", "format": "PNG", "resolution": "900x1200", "atlas": "N", "memory_est": "ASTC 4x4 압축 후 ~264KB"}, {"name": "Background_Popup_Trophie", "format": "PNG", "resolution": "900x1200", "atlas": "N", "memory_est": "ASTC 4x4 압축 후 ~264KB"}, {"name": "Title_Main", "format": "PNG", "resolution": "800x200", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~40KB"}, {"name": "Title_Congratulations", "format": "PNG", "resolution": "700x160", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~28KB"}, {"name": "Title_Too_Slow", "format": "PNG", "resolution": "700x160", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~28KB"}, {"name": "Title_Kudo", "format": "PNG", "resolution": "600x140", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~21KB"}, {"name": "Race_Object", "format": "PNG", "resolution": "300x300", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~22KB"}, {"name": "Race_Object_Dim", "format": "PNG", "resolution": "300x300", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~22KB"}, {"name": "Race_Level_Icon_Color", "format": "PNG", "resolution": "120x120", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~4KB"}, {"name": "Race_Level_Icon_Mono", "format": "PNG", "resolution": "120x120", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~4KB"}, {"name": "Race_Point_Icon", "format": "PNG", "resolution": "80x80", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~2KB"}, {"name": "Grand_Prize_Chest", "format": "PNG (웹이미지 CDN 연동, 런타임 다운로드)", "resolution": "400x400", "atlas": "N", "memory_est": "~625KB (런타임 캐시 고려 필요)"}, {"name": "Bottom_UI", "format": "PNG", "resolution": "1080x300", "atlas": "N", "memory_est": "ASTC 4x4 압축 후 ~79KB"}, {"name": "Bottom_UI_Vertical", "format": "PNG", "resolution": "1080x300", "atlas": "N", "memory_est": "기존 에셋 재사용"}, {"name": "Bottom_UI_Horizontal", "format": "PNG", "resolution": "1920x200", "atlas": "N", "memory_est": "기존 에셋 재사용"}, {"name": "Bottom_Character", "format": "PNG", "resolution": "600x800", "atlas": "N", "memory_est": "ASTC 4x4 압축 후 ~117KB"}, {"name": "Meta_Icon_up", "format": "PNG", "resolution": "200x200", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~10KB"}, {"name": "Meta_Icon_down", "format": "PNG", "resolution": "200x200", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~10KB"}, {"name": "Meta_Icon_Kudo", "format": "PNG", "resolution": "120x120", "atlas": "Y", "memory_est": "atlas 포함 ASTC 후 ~4KB"}, {"name": "Popup_Outline", "format": "PNG (9-slice 적용 권장)", "resolution": "920x1220", "atlas": "N", "memory_est": "ASTC 4x4 압축 후 ~274KB"}], "effect_specs": [{"name": "FX_GrandPrize_OpenParticle", "impl_method": "Spine 또는 Unity Particle System — LAVA 테마 불꽃 파티클, 1회성 Burst, 최대 파티클 수 50개 상한 권장", "perf_note": "Additive 블렌딩 오버드로우 주의. 동시 다른 이펙트와 겹칠 경우 fill-rate 합산 확인 필요"}, {"name": "FX_MetaIcon_Glow", "impl_method": "Shader 기반 외곽 Glow (Bloom 대체) 또는 Lottie 루프 오버레이", "perf_note": "루프 이펙트이므로 화면에 상시 존재. Bloom 포스트프로세싱 대신 로컬 Sprite Glow Shader 사용 권장"}, {"name": "FX_LevelDim_Overlay", "impl_method": "UI CanvasGroup Alpha 트위닝 또는 Race_Object_Dim 에셋으로 즉시 스프라이트 교체", "perf_note": "레벨 수만큼 오브젝트가 Dim 상태로 유지되므로 DrawCall 통합 필수 — Race_Object / Race_Object_Dim을 동일 Atlas에 배치"}, {"name": "FX_ProfileCrown_Sparkle", "impl_method": "Lottie 1회 재생 또는 소규모 Particle Burst (최대 20파티클)", "perf_note": "Event Completed 팝업 진입 시 Anim_CrownAppear와 동시 재생 — Lottie로 통합 단일 파일 관리 검토"}, {"name": "FX_Chest_WebImage_Shimmer", "impl_method": "Shader UV 스크롤(Gradient Mask + 하이라이트 텍스처 슬라이딩) — 웹이미지 위 별도 Overlay 레이어로 적용, 루프", "perf_note": "Grand_Prize_Chest가 CDN 런타임 다운로드 에셋이므로 로딩 완료 전 Shimmer 표시 시 빈 렌더 발생 가능 — 로드 완료 콜백 후 이펙트 활성화 필수"}], "pipeline_impact": {"build_changed": true, "import_changes": ["신규 Spine 에셋 5종 — Spine Runtime 버전 호환성 확인 및 Import Setting 표준 정의 필요", "Grand_Prize_Chest — 런타임 웹이미지 다운로드 경로를 어드민 파라미터로 주입, AssetBundle 미포함 처리 및 캐시 정책 빌드 설정 추가", "LAVA 테마 전용 파티클 머티리얼(FX_GrandPrize_OpenParticle용) — Shader Variant Collection 갱신 필요", "Atlas 신규 생성 — Title류(4종) + Race 아이콘류(6종) + Meta 아이콘류(3종) 최소 3개 Atlas로 분리, 2048x2048 초과 여부 사전 검증", "Lottie 파일(해당 애니메이션 선택 시) — Lottie 렌더러 플러그인 버전 및 Android/iOS 지원 범위 재확인"], "bundle_note": "신규 이미지 에셋 압축 후 순수 증가분 약 2~3MB 예상. 배경 4종을 별도 Addressable 그룹으로 분리하여 필요 시점에만 로드 권장. Spine 바이너리 5종 합산 약 500KB~1MB 추가 예상, 별도 Race Meta 번들 그룹으로 격리 권장."}, "performance_notes": [{"item": "배경 이미지 동시 메모리 상주", "impact": "Background_Vertical + Horizontal 동시 로드 시 약 1MB 텍스처 메모리 점유. 저사양 기기(RAM 2GB 이하)에서 한도 초과 가능", "mitigation": "방향을 런타임에 판별하여 해당 방향 배경만 로드, 반대 방향 즉시 Unload"}, {"item": "Anim_ProfileFall (물리 시뮬레이션 Spine)", "impact": "Spine 물리 시뮬레이션은 CPU 연산 비용이 일반 키프레임 대비 3~5배", "mitigation": "물리 본(bone) 수를 최소화(3개 이하)하고 시뮬레이션 시간을 0.8초 이내로 제한. 대안으로 키프레임 기반 낙하 + Ease-Out 커브로 대체 검토"}, {"item": "Anim_TimerGauge_RedPulse 루프 트위닝", "impact": "잔여 30초 미만 구간에서 매 프레임 UI 트위닝 Update 실행. FX_MetaIcon_Glow 루프와 중복 실행될 경우 Update 부하 누적", "mitigation": "DOTween Pool 재사용 확인. RedPulse 주기를 0.5초 이상으로 설정하고 코루틴으로 구현하여 매 프레임 연산 회피"}, {"item": "본인 제외 6명 프로필 이미지 동시 로드", "impact": "최대 6장을 CDN에서 런타임 다운로드. 네트워크 지연 시 레이아웃 흔들림 발생 가능", "mitigation": "LRU 캐시(최소 20장) 적용, Placeholder 이미지 먼저 표시 후 교체. 동시 다운로드 병렬 처리(최대 3개 동시) + 타임아웃 3초"}, {"item": "DrawCall — Race 레벨 오브젝트 다수 표시", "impact": "레벨 수만큼 Race_Object 스프라이트 배치. Atlas 미통합 시 레벨당 1 DrawCall 추가 발생", "mitigation": "Race_Object / Race_Object_Dim을 단일 Atlas에 배치하여 Dynamic Batching 활성화"}], "ta_risks": [{"item": "Grand_Prize_Chest 웹이미지 CDN 연동", "risk": "CDN 장애 또는 URL 미설정 시 보물상자 영역 공백 렌더링. FX_Chest_WebImage_Shimmer Shader가 텍스처 로드 전 참조 시 크래시 가능", "recommendation": "기본 Fallback 텍스처(패키지 내 포함)를 반드시 지정하고 CDN 로드 완료 이벤트 후 Shimmer 이펙트 활성화"}, {"item": "Spine Runtime 버전 불일치", "risk": "신규 Spine 에셋이 프로젝트 내 Spine Runtime 버전과 다를 경우 Import 실패 또는 메쉬 깨짐 발생. 물리 시뮬레이션 기능은 Spine 4.1+ 전용", "recommendation": "아티스트 Spine 제작 버전을 프로젝트 Runtime 버전과 사전 문서화 일치 확인. 물리 시뮬레이션 사용 시 Runtime 4.1 이상 업그레이드 여부를 개발팀과 사전 협의"}, {"item": "Wager 포인트 파이프라인 공용 수정과 에셋 이벤트 타이밍 연동", "risk": "서버 포인트 적립 이벤트 지연 시 클라이언트의 Anim_MetaIcon_PointGlow 및 FX_MetaIcon_Glow 트리거 타이밍이 어긋나 사용자 경험 저하", "recommendation": "포인트 적립 확인 응답(ACK) 수신 시점에만 애니메이션 트리거. 낙관적 UI 표시가 필요한 경우 롤백 애니메이션 구현 포함"}, {"item": "ms 단위 타이머와 Anim_TimerGauge_RedPulse 임계값 동기화", "risk": "서버 수신 시각 기준 판정과 클라이언트 타이머 UI 간 오차 발생 시 RedPulse 시작 타이밍 불일치", "recommendation": "타이머 게이지는 서버 동기화 시각 기준으로 보정된 클라이언트 시간을 사용. 네트워크 지연 허용치 어드민 파라미터 값을 UI 타이머 보정값으로도 활용하도록 개발팀과 인터페이스 정의"}, {"item": "Atlas 크기 초과 위험", "risk": "소형 에셋 다수를 단일 Atlas에 패킹 시 2048x2048 초과 가능", "recommendation": "Atlas를 용도별 3그룹으로 분리: 배경/팝업 대형(개별 관리) / 레이스 UI 소형(Race_Object 포함) / 메타/타이틀류. 각 그룹 2048x2048 이내 패킹 결과 TA가 사전 검증"}, {"item": "18종 어드민 에셋 업로드 규격 미준수", "risk": "해상도·포맷 미준수 에셋 업로드 시 클라이언트 레이아웃 깨짐. QA 단계 발견 시 재납품 일정 지연", "recommendation": "어드민 업로드 화면에 에셋별 허용 해상도·포맷 명시 및 서버 사이드 유효성 검증 추가. TA가 납품 체크리스트 작성 및 아티스트 납품 전 검수 프로세스 수립"}]}, "critical_questions": [{"priority": "P0", "related_ids": ["L-03"], "question": "앞 3자리 뒤에는 버림처리의 정확한 기준은 무엇인가? 유효숫자 3자리(예: 123,456 → 123,000)인가, 천 단위 이하 버림인가? gem(소량)에도 동일 기준이 적용되는가?", "impact": "보상 계산 로직의 버림 기준이 확정되지 않으면 coin·gem 보상 금액이 구현마다 달라질 수 있으며, 특히 소량 gem 보상에서 0 지급 또는 비정상 값 지급 리스크 있음"}, {"priority": "P0", "related_ids": ["M-15"], "question": "Gem Restart 비용 공식의 제수 69333.333은 어떻게 도출된 수치인가? 이 값의 출처와 의미를 공식화하고, 부동소수점 정밀도 처리 방식을 명확히 해 달라. 또한 Gem 비용의 최솟값·최댓값 제한이 있는가?", "impact": "제수 출처가 불명확하면 레벨 수·목표 wager 조합에 따라 Gem 비용이 의도치 않은 값으로 계산될 수 있음. TA 부동소수점 정밀도 이슈로 분류된 Critical 항목이며, 잘못 구현 시 젬 경제 파괴 리스크 있음"}, {"priority": "P0", "related_ids": ["E-08", "E-09", "U-17"], "question": "Gem Restart ON 탈락 팝업(2레벨 이상)에 X버튼이 존재하는가, 존재하지 않는가? U-17(X버튼 없음)과 E-09(X버튼 → Later 처리)가 직접 상충되므로 최종 스펙을 확정해 달라.", "impact": "X버튼 존재 여부가 확정되지 않으면 팝업 UI 구현 방향이 결정되지 않으며, QA 테스트 케이스 작성도 불가"}, {"priority": "P0", "related_ids": ["S-03", "A-03"], "question": "어드민에서 업로드하는 에셋은 S-03 기준 18종인가, A-03 기준 15종인가? 3종 차이의 원인을 명확히 하고 최종 에셋 목록과 납품 규격(해상도·포맷·최대 용량)을 확정해 달라.", "impact": "어드민 에셋 업로드 슬롯 구현 수가 달라지며, TA 리스크(규격 미준수 시 레이아웃 깨짐)와 직결됨"}, {"priority": "P0", "related_ids": ["M-07", "L-06"], "question": "레벨 목표 달성 후 메타 미진입 상태(FINISHED 아이콘)에서 캠페인이 종료된 경우, 해당 레벨 클리어 보상 및 중간보상이 지급되는가 지급되지 않는가? M-07과 L-06의 교차 케이스 처리를 명확히 해 달라.", "impact": "FINISHED 상태로 캠페인이 종료된 유저에게 보상 지급 여부가 불명확하면 보상 로직 구현 방향이 결정되지 않으며, 잘못 구현 시 미지급 또는 중복 지급으로 인한 CS·운영 리스크 발생"}, {"priority": "P1", "related_ids": ["M-01", "M-02"], "question": "habit wager 산출 불가 유저(14일 내 스핀 0회) 및 클럽원·친구가 조건 미달인 경우의 fallback 정책을 명확히 해 달라. 특히 봇 프로필의 닉네임·아바타 생성 방식을 알려 달라.", "impact": "fallback 미정의 시 대상 유저 분류 로직 및 봇 프로필 생성 로직을 착수할 수 없으며, 이벤트 오픈 후 일부 유저에게 이상 표시가 발생할 리스크 있음"}, {"priority": "P1", "related_ids": ["M-14", "M-16"], "question": "계산 공식에 사용되는 Event Duration의 단위(일/시간/분)와, Difficulty Multi가 전체 Target Wager에 일괄 적용되는 단일 값인지 레벨별로 별도 적용되는 값인지 확인해 달라.", "impact": "단위 오해 시 Total Target Wager 및 최종 보상이 수십 배 오차로 계산될 수 있어, 밸런스 파괴 및 이벤트 전면 재세팅 필요 사태 발생 가능"}, {"priority": "P1", "related_ids": ["U-05", "U-09", "M-02"], "question": "레이스 메타 화면에서 표시되는 총 프로필 수를 확정해 달라. M-02(본인 제외 6명), U-05(총 6명), U-09(본인+왼-오-왼-오-왼-오 순서로 생성 → 총 7명 해석 가능)가 상충됨.", "impact": "총 프로필 수 불확정 시 레이아웃·서버 데이터 조회 로직 착수 불가"}, {"priority": "P1", "related_ids": ["S-06"], "question": "CSV Import 동작 방식(기존 레벨 전체 덮어쓰기 vs. 병합), Import 실패 시 롤백 정책, CSV 파일 포맷 명세를 제공해 달라.", "impact": "TA가 dry-run 유효성 검사 및 롤백을 필요로 한다고 분류한 리스크 항목. 롤백 미구현 시 CSV 오업로드로 레벨 설정이 불완전 상태가 되는 심각한 운영 사고 발생 가능"}, {"priority": "P1", "related_ids": ["U-17", "M-04"], "question": "젬으로 해당 레벨 재시작 시 제한시간(타이머)도 초기화되는가? 젬 차감 타이밍과 Gem shop에서 구매 완료 후 Restart 팝업으로 자동 복귀하는지 여부를 확인해 달라.", "impact": "타이머 초기화 여부에 따라 레벨 재시작 게임플레이 밸런스가 전혀 달라지며, Gem shop 복귀 플로우 미정의 시 구매 후 이탈 UX 버그 발생 리스크 있음"}], "meeting": {"date": "2026-05-11", "participants": ["기획 에이전트", "개발 에이전트", "아트 에이전트", "TA 에이전트", "QA 에이전트"], "rounds": [{"round": 1, "agent": "기획 에이전트", "agent_type": "planner", "content": "이번 레이싱 Meta-2 기획에서 팀이 공통으로 지적한 이슈를 먼저 정리하겠습니다. **가장 시급한 것은 두 가지 수치 정의 문제**입니다. 첫째, **L-03 버림 처리 기준**입니다. '앞 3자리 뒤 버림'이라는 표현이 기획서에 있지만, 이것이 유효숫자 3자리(예: 123,456 → 123,000) 기준인지 천 단위 이하 버림인지 내부적으로도 합의되지 않은 상태임을 인정합니다. gem에도 동일 기준이 적용되는지 역시 명시하지 못했고, 이번 회의에서 **반드시 확정**해야 합니다. 둘째, **M-15 제수 69333.333**의 출처는 기획 초기 밸런스 시트에서 역산한 값으로, 문서화 없이 수치만 넘어간 것이 문제입니다. 이번 스프린트 내로 산출 근거 공식을 문서화하겠습니다. 또한 **U-17과 E-09의 X버튼 상충** 문제는 기획 실수로, Gem Restart ON 탈락 팝업(2레벨 이상)에는 **X버튼 없음**이 최종 스펙임을 이 자리에서 확정합니다. E-09는 1레벨 전용 케이스로 한정하겠습니다."}, {"round": 1, "agent": "개발 에이전트", "agent_type": "developer", "content": "기획 에이전트의 X버튼 확정 방향에 동의합니다. 덕분에 팝업 분기 구현 방향이 명확해졌습니다. 다만 **69333.333 제수 문제는 단순 문서화로 끝날 사안이 아닙니다**. 이 값이 부동소수점으로 계산 체인에 들어가면 레벨 수가 많아질수록 누적 오차가 발생합니다. 정수 스케일링 방식(예: 분자·분모를 정수로 분리)이나 고정 소수점 연산으로 치환하는 것을 강력히 권고합니다. **기획 확정 전에 구현 방식을 합의해야** 하며, 그렇지 않으면 서버·클라가 각각 다른 반올림 결과를 낼 수 있습니다. Gem Restart 시 **젬 차감과 포인트 리셋의 원자적 트랜잭션 처리**도 P0로 설계해야 합니다. 부분 실패 시 유저 피해가 직접 발생하기 때문입니다. 또한 캠페인 도중 파라미터 변경이 허용되는지 기획 측에 확인이 필요합니다. 허용된다면 이미 진입한 유저의 target wager 고정 정책을 스펙에 명시해야 합니다. **어드민 CSV Import에 대해서는 dry-run 및 롤백 없이는 배포 불가** 입장입니다."}, {"round": 1, "agent": "아트 에이전트", "agent_type": "artist", "content": "개발 에이전트의 구현 리스크 내용을 들으면서, **어드민 에셋 수량 혼선이 아트 일정에도 직접 영향**을 준다는 점을 강조하고 싶습니다. QA 분석에서 S-03 기준 18종과 A-03 기준 15종이 충돌하는 것으로 나왔는데, 저희도 현재 어느 기준으로 납품을 준비해야 할지 불확실합니다. **총 22종 이미지·9종 애니메이션·5종 이펙트 기준 18MD 예상**이지만, 어드민 납품분이 최종 확정되지 않으면 일정이 흔들립니다. Grand Prize 파티클과 탈락 연출은 난이도 가중 항목이라 **TA와의 사전 검수 일정이 최소 3일은 필요**합니다. 해상도·포맷·최대 용량 규격을 이번 주 내로 확정해 주시면 납품 일정을 역산할 수 있습니다."}, {"round": 1, "agent": "TA 에이전트", "agent_type": "ta", "content": "아트 에이전트가 언급한 사전 검수 일정 요청에 동의합니다. **Spine Runtime 버전 불일치는 지금 당장 확인해야 할 블로커**입니다. 신규 물리 시뮬레이션 에셋이 Spine 4.1+ 전용 기능을 사용한다면, 프로젝트의 현재 Runtime 버전과 맞지 않을 경우 Import 자체가 실패합니다. 이 확인 없이 아트 작업이 진행되면 이후 재작업 비용이 큽니다. **CDN 연동 문제**도 중요합니다. Grand_Prize_Chest 웹이미지 URL이 미설정 상태로 배포되면 보물상자 영역이 공백으로 렌더링되고, Shimmer Shader가 텍스처 로드 전 참조 시 크래시까지 이어질 수 있습니다. CDN URL 설정과 null 체크 로직을 개발과 함께 P0로 처리해야 합니다. ms 단위 타이머와 **Anim_TimerGauge_RedPulse 임계값 동기화**는 서버 타이머 기준을 클라이언트 UI에 어떻게 전달할지 개발 에이전트와 프로토콜 합의가 필요합니다. Atlas 2048x2048 초과 위험도 소형 에셋 패킹 전 사전 레이아웃 검토로 예방 가능합니다."}, {"round": 1, "agent": "QA 에이전트", "agent_type": "qa", "content": "기획·개발·TA 발언 모두 저희가 고위험으로 분류한 항목들과 정확히 일치합니다. **P0 Critical Question 5가지 중 이 자리에서 즉시 확정되어야 하는 것은 세 가지**입니다. 첫째, L-03 버림 기준(기획 에이전트가 이번 회의에서 확정 의지를 밝혔으므로 회의록에 확정 값으로 기재 필요). 둘째, U-17·E-09 X버튼 상충(기획 에이전트가 확정했으므로 스펙 문서 반영 요청). 셋째, 어드민 에셋 수량 18종 vs 15종 확정(아트·개발 동시 영향). **69333.333 제수는 기획 문서 수정만으로는 부족**하고, 개발 에이전트가 제안한 정수 스케일링 방식으로의 구현 전환 여부를 이번 스프린트 내 결정해 주셔야 테스트 케이스 설계가 가능합니다. FINISHED 상태 캠페인 종료 시 보상 지급 여부(M-07·L-06 교차 케이스)는 아직 아무도 확정 답변을 주지 않았습니다. 이것이 확정되지 않으면 보상 로직 E2E 테스트 케이스 작성이 불가합니다. **5레벨 직선형(Others) 기능 설명 생략 건**도 해당 슬롯에 대한 테스트 케이스 범위를 결정할 수 없어 QA 착수가 지연됩니다."}, {"round": 2, "agent": "기획 에이전트", "agent_type": "planner", "content": "QA 에이전트가 정리한 미확정 항목에 대해 이 자리에서 답변드립니다. **L-03 버림 기준 확정: 천(1,000) 단위 이하 버림**입니다. 예: 123,456 → 123,000. gem에는 이 기준을 적용하지 않으며, gem은 정수 단위 버림(소수점 이하 버림)으로 별도 처리합니다. **어드민 에셋 최종 수량은 18종**으로 확정합니다. A-03에서 15종으로 기재된 것은 초안 기준이며, 이후 추가된 3종(탈락 연출 2종·Grand Prize 배너 1종)이 누락된 오기입니다. 슬라이드를 금일 수정하겠습니다. **FINISHED 상태 캠페인 종료 시 보상 지급 여부: 레벨 클리어 보상은 지급, 중간보상은 미지급**입니다. 메타 미진입 상태이므로 중간보상 조건 미충족으로 판단합니다. 5인 직선형(Others) 기능은 이번 캠페인 스코프 외 참고용으로, **현 스프린트에서는 테스트 대상 아님**을 QA에 공식 전달합니다. 캠페인 도중 파라미터 변경은 **원칙적으로 금지**하고, 어드민에서 편집 불가 처리하는 방향으로 개발에 요청합니다."}, {"round": 2, "agent": "개발 에이전트", "agent_type": "developer", "content": "기획 에이전트의 확정 사항을 반영해 구현 방향을 정리합니다. **L-03 천 단위 이하 버림은 서버에서 단일 처리**하고, 클라이언트는 서버 값을 그대로 표시하는 구조로 통일합니다. 클라 측에서 추가 버림 연산을 하지 않도록 코드 리뷰 체크리스트에 추가하겠습니다. **69333.333은 정수 스케일링 대안(예: 208,000,000 / 3000 형태)을 이번 스프린트 내 수식 검토 후 기획과 재합의**하겠습니다. 캠페인 진행 중 파라미터 잠금 정책이 확정됐으므로, 어드민 편집 잠금 UI와 함께 진입 시 target wager 스냅샷 저장 로직을 설계합니다. **CSV Import dry-run 및 롤백 기능은 P1으로 처리**하되, dry-run 없이는 Import 버튼 자체를 비활성화하는 안전장치를 P0로 먼저 구현하겠습니다. CDN null 체크와 Shimmer Shader 크래시 방지는 TA와 금주 내 코드 리뷰 일정을 잡겠습니다."}, {"round": 2, "agent": "아트 에이전트", "agent_type": "artist", "content": "어드민 에셋 **최종 18종 확정**을 받았습니다. 납품 규격(해상도·포맷·최대 용량)을 개발·TA와 이번 주 중으로 확정하면 **납품 마감일을 스프린트 D-5일**로 역산할 수 있습니다. Grand Prize 파티클과 탈락 연출 2종은 난이도 가중 항목이므로 **TA 사전 검수를 D-7일에 1차 진행**하는 것을 제안합니다. Spine Runtime 버전 확인이 선행되어야 물리 시뮬레이션 에셋 작업에 착수할 수 있으므로, TA 에이전트의 버전 확인 결과를 **금일 EOD까지** 공유해 주시면 내일부터 작업 분기를 결정하겠습니다. Atlas 패킹 계획은 소형 에셋 목록이 확정되는 시점에 TA와 공동으로 레이아웃 검토를 진행하겠습니다."}, {"round": 2, "agent": "TA 에이전트", "agent_type": "ta", "content": "아트 에이전트의 일정 요청을 수락합니다. **Spine Runtime 버전 확인은 금일 EOD까지** 완료하고 결과를 슬랙으로 공유하겠습니다. 버전 불일치 시 Runtime 업그레이드 영향 범위 분석도 함께 첨부합니다. ms 단위 타이머와 RedPulse 동기화 문제는 개발 에이전트와 합의된 서버 타이머 기준값을 클라이언트 이벤트 버스로 수신하는 구조를 기준으로 **임계값 오차 허용 범위(±200ms 안)를 스펙에 명시**할 것을 요청합니다. 이 값이 명시되어야 QA도 타이머 판정 테스트 케이스를 작성할 수 있습니다. CDN null 체크 코드 리뷰는 개발 에이전트 제안대로 **금주 내 진행**에 동의합니다. **Atlas 2048 초과 위험은 18종 납품 규격 확정 후 즉시 레이아웃 시뮬레이션**을 돌려 초과 여부를 사전 검증하겠습니다."}, {"round": 2, "agent": "QA 에이전트", "agent_type": "qa", "content": "이번 라운드에서 확정된 내용을 정리하면, **P0 Critical Question 5가지 중 4가지가 이 자리에서 해소**되었습니다. L-03 버림 기준(천 단위 이하 버림, gem 별도 정수 버림), U-17·E-09 X버튼(2레벨 이상 X버튼 없음), 어드민 에셋 18종 확정, FINISHED 상태 보상(레벨 클리어 지급·중간보상 미지급). **미해소 항목은 69333.333 정수 스케일링 전환 여부**로, 이것이 확정되어야 Gem Restart 비용 계산 테스트 케이스를 완성할 수 있습니다. 타이머 허용 오차 ±200ms 기준은 TA 제안을 QA 테스트 케이스 기준으로 채택하겠습니다. **5인 직선형(Others) 기능이 현 스프린트 스코프 외임이 공식 확인**되었으므로 해당 테스트 케이스는 제외합니다. 이번 회의 합의 내용은 금일 중으로 스펙 문서에 반영해 주시면 QA 착수가 가능합니다."}], "consensus": [{"priority": "P0", "action": "[L-03 버림 기준 확정] 천(1,000) 단위 이하 버림, gem은 소수점 이하 정수 버림으로 분리 적용. 서버 단일 처리, 클라 재연산 금지. 담당: 기획(스펙 문서 금일 수정) + 개발(서버 구현 시 코드 리뷰 체크리스트 추가). 기한: 금일 EOD"}, {"priority": "P0", "action": "[U-17·E-09 팝업 X버튼 상충 해소] Gem Restart ON 탈락 팝업 2레벨 이상: X버튼 없음. E-09(Later 처리)는 1레벨 전용으로 한정. 담당: 기획(스펙 문서 반영 금일) + 개발(팝업 분기 구현) + QA(테스트 케이스 작성). 기한: 금일 스펙 확정, 구현 이번 스프린트"}, {"priority": "P0", "action": "[어드민 에셋 수량 확정] 최종 18종(탈락 연출 2종·Grand Prize 배너 1종 포함). A-03 문서 오기 수정. 해상도·포맷·최대 용량 규격 이번 주 중 확정. 담당: 기획(슬라이드 수정 금일) + 아트+TA+개발(규격 합의 이번 주 수요일까지). 기한: 규격 확정 D-day 수요일"}, {"priority": "P0", "action": "[FINISHED 상태 보상 정책 확정] 레벨 클리어 보상 지급, 중간보상 미지급(메타 미진입 = 중간보상 조건 미충족). M-07·L-06 교차 케이스 스펙 문서에 명시. 담당: 기획(금일 스펙 반영) + 개발(보상 로직 구현) + QA(E2E 테스트 케이스 작성). 기한: 금일 확정"}, {"priority": "P0", "action": "[Spine Runtime 버전 확인] 신규 에셋과 프로젝트 Runtime 버전 정합성 확인 및 슬랙 공유. 불일치 시 업그레이드 영향 범위 분석 첨부. 담당: TA. 기한: 금일 EOD"}, {"priority": "P0", "action": "[CDN null 체크 및 Shimmer Shader 크래시 방지] Grand_Prize_Chest 웹이미지 CDN URL null 체크 로직 구현 및 코드 리뷰. 담당: 개발+TA 공동 리뷰. 기한: 금주 내"}, {"priority": "P0", "action": "[Gem Restart 원자적 트랜잭션 설계] 젬 차감과 포인트 리셋을 단일 트랜잭션으로 처리, 부분 실패 시 롤백 보장. 담당: 개발(서버 설계 이번 스프린트 초반). 기한: 스프린트 D+2"}, {"priority": "P0", "action": "[캠페인 진행 중 파라미터 잠금] 어드민에서 캠페인 활성 상태 시 파라미터 편집 불가 처리. 진입 시 target wager 스냅샷 저장 로직 설계. 담당: 개발. 기한: 이번 스프린트"}, {"priority": "P1", "action": "[69333.333 정수 스케일링 전환 합의] 부동소수점 오차 제거를 위해 분자·분모 정수 분리 방식(예: 208,000,000 / 3,000) 검토 후 기획과 재합의. gem 비용 최솟값·최댓값 제한 여부도 함께 확정. 담당: 개발(수식 검토) + 기획(확정 승인). 기한: 이번 스프린트 내"}, {"priority": "P1", "action": "[ms 타이머 허용 오차 스펙 명시] 서버 기준 ±200ms 허용 범위를 스펙 문서에 기재. 클라 RedPulse 임계값 동기화 기준 확정. 담당: TA(기준 제안) + 기획(스펙 반영) + QA(테스트 케이스 기준 채택). 기한: 이번 스프린트 내"}, {"priority": "P1", "action": "[중간보상 수령 플래그 스키마 설계] 레벨 단위 플래그 스키마 및 Restart 시 초기화 정책 설계. 마이그레이션 계획 포함. 담당: 개발. 기한: 이번 스프린트 내"}, {"priority": "P1", "action": "[어드민 CSV Import dry-run 및 롤백 구현] dry-run 없이 Import 버튼 비활성화(P0 안전장치)는 즉시 적용, 완전한 dry-run+롤백 기능은 P1으로 이번 스프린트 내 구현. 담당: 개발. 기한: 이번 스프린트"}, {"priority": "P1", "action": "[Grand Prize 파티클·탈락 연출 TA 사전 검수] 아트 1차 납품 D-7일 시점 TA 검수 일정 확정. Atlas 2048 초과 여부 납품 규격 확정 후 즉시 시뮬레이션. 담당: 아트+TA. 기한: 납품 마감 D-7"}, {"priority": "P2", "action": "[클럽원·친구 프로필 조회 캐싱 TTL 정책 수립] DB 부하 분산과 탈퇴 클럽원 노출 방지 균형점 설정. 권장 TTL 및 강제 무효화 시점 정의. 담당: 개발. 기한: 권고(다음 스프린트 검토)"}, {"priority": "P2", "action": "[5인 직선형(Others) 기능 명세 보완] 슬라이드 37 내용 생략 건은 현 스프린트 스코프 외. 다음 기획 사이클에서 별도 명세 작성. 담당: 기획. 기한: 권고(다음 기획 사이클)"}]}};
+const D = window.__VDT__;
+
+const VERDICT = {
+  '✅': { cls:'vb-ok',   label:'착수가능', stat:'착수가능' },
+  '⚠️': { cls:'vb-warn', label:'확인필요', stat:'확인필요' },
+  '🔴': { cls:'vb-risk', label:'착수불가', stat:'착수불가' },
+};
+
+function vbadge(v) {
+  const m = VERDICT[v] || VERDICT['?'];
+  return `<span class="vb ${m.cls}">${v} ${m.label}</span>`;
+}
+
+function stBadge(s) {
+  if (s === 'Done')        return `<span class="st-done">✅ Done</span>`;
+  if (s === 'IN PROGRESS') return `<span class="st-wip">⏳ IN PROGRESS</span>`;
+  return `<span class="st-todo">○ ${s||'TODO'}</span>`;
+}
+
+function renderHeader() {
+  return `
+    <div class="header">
+      <div class="header-row">
+        <div class="header-left">
+          <span class="team-badge">🤖 가상 개발팀</span>
+          <div>
+            <div class="header-title">${D.title} — 기획서 품질 분석</div>
+            <div class="header-ticket">${D.ticket_key}</div>
+          </div>
+        </div>
+        <span class="status-badge">⏳ Director 승인 대기 — ${D.analysis_date} 분석 완료</span>
+      </div>
+    </div>`;
+}
+
+function renderStats() {
+  const s = D.stats || {};
+  const items = [
+    { v:'✅', key:'착수가능', cls:'green'  },
+    { v:'⚠️', key:'확인필요', cls:'orange' },
+    { v:'🔴', key:'착수불가', cls:'red'    },
+  ];
+  return `<div class="stats-bar">${
+    items.map(i => `
+      <div class="stat">
+        <span style="color:var(--${i.cls})">${i.v}</span>
+        <span class="stat-num" style="color:var(--${i.cls})">${s[i.key]||0}</span>
+        <span style="color:var(--text-muted)">${i.key}</span>
+      </div>`).join('')
+  }</div>`;
+}
+
+function renderTabs() {
+  return `<div class="tabs">
+    <div class="tab active" onclick="switchTab('spec',this)">📋 기획서</div>
+    <div class="tab" onclick="switchTab('dev',this)">🛠 개발 리스크</div>
+    <div class="tab" onclick="switchTab('meeting',this)">💬 회의록</div>
+  </div>`;
+}
+
+function renderSpecLeft() {
+  const sp = D.spec || {};
+  let html = `<div class="spec-title">기획서 요약: ${D.title}</div>`;
+
+  if (sp.purpose) html += `
+    <div class="section">
+      <div class="section-label">목적 &amp; 배경</div>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.7">${sp.purpose}</p>
+    </div>`;
+
+  if ((sp.key_features||[]).length) html += `
+    <div class="section">
+      <div class="section-label">주요 기능</div>
+      <table class="feat-table"><tbody>${
+        sp.key_features.map(f=>`<tr><td>${f.component}</td><td>${f.content}</td></tr>`).join('')
+      }</tbody></table>
+    </div>`;
+
+  if ((sp.subtasks||[]).length) html += `
+    <div class="section">
+      <div class="section-label">서브태스크 현황</div>
+      <table class="sub-table">
+        <thead><tr><th>서브태스크</th><th>담당</th><th>상태</th></tr></thead>
+        <tbody>${sp.subtasks.map(t=>`<tr><td>${t.key}</td><td>${t.owner}</td><td>${stBadge(t.status)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  if ((sp.incomplete_areas||[]).length) html += `
+    <div class="section">
+      <div class="section-label">⚠️ 미완성 영역</div>
+      ${sp.incomplete_areas.map(a => {
+        const author = typeof a === 'object' ? a.author : '';
+        const text   = typeof a === 'object' ? a.comment : a;
+        return `<div class="warn-card">${author?`<div class="warn-author">${author} 코멘트</div>`:''}<div class="warn-text">${text}</div></div>`;
+      }).join('')}
+    </div>`;
+
+  if ((sp.ui_ux_changes||[]).length) html += `
+    <div class="section">
+      <div class="section-label">UI/UX 변경사항</div>
+      <ul class="bul">${sp.ui_ux_changes.map(u=>`<li>${typeof u==='object'?(u.content||u.description||u.change||JSON.stringify(u)):u}</li>`).join('')}</ul>
+    </div>`;
+
+  if ((sp.edge_cases||[]).length) html += `
+    <div class="section">
+      <div class="section-label">예외/엣지케이스 (기획서 명시분)</div>
+      <ul class="bul">${sp.edge_cases.map(e=>`<li>${typeof e==='object'?(e.content||e.description||e.case||JSON.stringify(e)):e}</li>`).join('')}</ul>
+    </div>`;
+
+  return html;
+}
+
+function renderQaPredictions() {
+  const items = (D.ac_items || []).filter(ac => ac.qa_prediction && ac.verdict !== '✅');
+  if (!items.length) return '';
+  const rows = items.map(ac => {
+    const isCritical = ac.verdict === '🔴';
+    return `
+      <tr>
+        <td style="width:52px;font-weight:700;font-size:11px;vertical-align:top;padding-top:9px">${ac.id}</td>
+        <td style="width:80px;vertical-align:top;padding-top:7px">${vbadge(ac.verdict||'⚠️')}</td>
+        <td style="font-size:11px;color:var(--text-muted);vertical-align:top">${ac.content||''}</td>
+        <td style="font-size:11px;vertical-align:top;color:${isCritical ? 'var(--red)' : '#e8a84a'};font-style:italic;line-height:1.5">${ac.qa_prediction}</td>
+      </tr>`;
+  }).join('');
+  return `
+    <div class="right-section" style="margin-top:20px">
+      <div class="right-section-title">🔮 테스트 예측 리스크
+        <span style="color:var(--text-muted);font-weight:400;font-size:11px"> (⚠️/🔴 항목 ${items.length}건)</span>
+      </div>
+      <table class="ac-table" style="margin-top:8px">
+        <thead><tr>
+          <th style="width:52px">AC#</th>
+          <th style="width:80px">판정</th>
+          <th>기획 항목</th>
+          <th style="width:40%">예측 이슈</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderCriticalQuestions() {
+  const cqs = D.critical_questions || [];
+  if (!cqs.length) return '';
+  const p0 = cqs.filter(q => q.priority === 'P0');
+  const p1 = cqs.filter(q => q.priority === 'P1');
+  const rows = [...p0, ...p1].map(q => `
+    <tr>
+      <td><span class="vb ${q.priority==='P0'?'vb-risk':'vb-warn'}">${q.priority}</span></td>
+      <td style="color:var(--text-muted);font-size:11px">${(q.related_ids||[]).join(', ')}</td>
+      <td style="font-weight:500">${q.question}</td>
+      <td style="color:var(--text-muted);font-size:12px">${q.impact||'—'}</td>
+    </tr>`).join('');
+  return `
+    <div class="right-section" style="margin-top:20px">
+      <div class="right-section-title">❓ Critical Questions <span style="color:var(--text-muted);font-weight:400">(개발 착수 전 기획자 확인 필요)</span></div>
+      <table class="ac-table" style="margin-top:8px">
+        <thead><tr>
+          <th style="width:50px">우선순위</th>
+          <th style="width:80px">관련 AC</th>
+          <th>질문</th>
+          <th style="width:28%">미해결 시 영향</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderRightPanel() {
+  const items   = D.ac_items || [];
+  const dev     = D.developer || {};
+  const order   = dev.impl_order || [];
+  const risks   = dev.impl_risks || [];
+
+  // ── 통계 실시간 재계산 (stats 바와 일치 보장) ──
+  const realStats = {'착수가능':0,'확인필요':0,'착수불가':0};
+  const lmap = {'✅':'착수가능','⚠️':'확인필요','🔴':'착수불가'};
+  items.forEach(ac => { const k = lmap[ac.verdict||'⚠️']; if(k) realStats[k]++; });
+  const total = items.length;
+
+  // ── AC 판정 통계 배지 ──
+  const statBadges = Object.entries(realStats)
+    .filter(([,n]) => n > 0)
+    .map(([k,n]) => {
+      const icon = Object.entries(lmap).find(([,v])=>v===k)?.[0] || '?';
+      const vcls = VERDICT[icon]?.cls || 'vb-unk';
+      return `<span class="vb ${vcls}" style="margin-right:4px">${icon} ${k} ${n}</span>`;
+    }).join('');
+
+  // ── AC 테이블 ──
+  const acRows = items.map(ac => `
+    <tr>
+      <td class="ac-id">${ac.id||''}</td>
+      <td>${ac.content||''}</td>
+      <td>${vbadge(ac.verdict||'⚠️')}</td>
+      <td style="color:var(--text-muted)">${ac.ambiguity||'—'}</td>
+      <td style="color:var(--text-muted);font-style:italic">${ac.missing_info||ac.question||'—'}</td>
+    </tr>`).join('');
+
+  // ── 개발팀 권고사항 (impl_order) ──
+  let devSection = '';
+  if (order.length || risks.length) {
+    const orderItems = order.map((o, i) => `
+      <li>
+        <span class="rec-num">${i+1}</span>
+        <span>${o}</span>
+      </li>`).join('');
+
+    const riskItems = risks.filter(r => r.complexity === 'High').map(r => `
+      <div class="rec-risk-row">
+        <span class="cx-high" style="flex-shrink:0;white-space:nowrap">🔴 High</span>
+        <div style="flex:1;min-width:0">
+          <span style="font-weight:600">${r.feature}</span>
+          <span style="color:var(--text-muted)"> — ${r.risk}</span>
+        </div>
+      </div>`).join('');
+
+    devSection = `
+      <div class="right-section" style="margin-top:20px">
+        <div class="right-section-title">🛠 개발팀 권고사항</div>
+        ${order.length ? `<ol class="rec-list">${orderItems}</ol>` : ''}
+        ${riskItems ? `<div class="rec-risks" style="margin-top:10px">${riskItems}</div>` : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="right-section-title" style="margin-bottom:6px">
+      기획서 품질 판정 <span style="color:var(--text-muted);font-weight:400">(${total}건)</span>
+    </div>
+    <div style="margin-bottom:10px">${statBadges}</div>
+    <table class="ac-table">
+      <thead><tr>
+        <th style="width:56px">AC#</th>
+        <th>내용</th>
+        <th style="width:86px">판정</th>
+        <th style="width:26%">모호한 점</th>
+        <th style="width:22%">확인 필요 사항</th>
+      </tr></thead>
+      <tbody>${acRows}</tbody>
+    </table>
+    ${renderQaPredictions()}
+    ${devSection}
+    ${renderCriticalQuestions()}`;
+}
+
+function ctClass(type, isRisky) {
+  const t = (type||'').trim();
+  if (isRisky)           return 'ct-risky ct-cmod';
+  if (t === '신규')      return 'ct-new';
+  if (t === '수정')      return 'ct-mod';
+  if (t === '공용 수정') return 'ct-cmod';
+  if (t === '완료')      return 'ct-done';
+  if (t === '삭제')      return 'ct-del';
+  return 'ct-mod';
+}
+function cxClass(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return 'cx-high';
+  if (v === 'med')  return 'cx-med';
+  return 'cx-low';
+}
+function cxIcon(c) {
+  const v = (c||'').toLowerCase();
+  if (v === 'high') return '🔴';
+  if (v === 'med')  return '🟠';
+  return '🟢';
+}
+
+function renderDevPanel() {
+  const dev = D.developer || {};
+  const impact   = dev.impact_scope  || D.impact_scope  || [];
+  const implRisk = dev.impl_risks    || D.impl_risks     || [];
+  const order    = dev.impl_order    || D.impl_order     || [];
+  const notes    = dev.tech_notes    || D.tech_notes     || [];
+  const title    = D.title || '';
+
+  let html = `<h2 style="font-size:18px;font-weight:700;margin-bottom:22px">개발 리스크 분석: ${title}</h2>`;
+
+  // 영향 범위 분석
+  if (impact.length) {
+    const rows = impact.map(i => `
+      <tr>
+        <td>${i.module||''}</td>
+        <td class="${ctClass(i.change_type, i.is_risky)}">${i.is_risky?'⚠️ ':''}${i.change_type||''}</td>
+        <td style="color:var(--text-muted)">${i.detail||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">영향 범위 분석</div>
+        <table class="impact-table">
+          <thead><tr><th style="width:220px">모듈/영역</th><th style="width:120px">변경 유형</th><th>상세</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 리스크 테이블
+  if (implRisk.length) {
+    const rows = implRisk.map(r => `
+      <tr>
+        <td>${r.feature||''}</td>
+        <td class="${cxClass(r.complexity)}">${cxIcon(r.complexity)} ${r.complexity||''}</td>
+        <td style="color:var(--text-muted)">${r.risk||''}</td>
+      </tr>`).join('');
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 리스크 테이블</div>
+        <table class="impl-table">
+          <thead><tr><th>기능</th><th style="width:100px">복잡도</th><th>리스크</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // 구현 순서 권고
+  if (order.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">구현 순서 권고</div>
+        <ol class="impl-order">${order.map(o=>`<li>${typeof o==='object'?(o.content||o.step||o.description||JSON.stringify(o)):o}</li>`).join('')}</ol>
+      </div>`;
+  }
+
+  // 기술 리스크 & 주의사항
+  if (notes.length) {
+    html += `
+      <div class="dev-section">
+        <div class="dev-section-title">기술 리스크 &amp; 주의사항</div>
+        <ul class="tech-notes">${notes.map(n=>`<li>${typeof n==='object'?(n.content||n.note||n.description||JSON.stringify(n)):n}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  if (!impact.length && !implRisk.length && !order.length && !notes.length) {
+    html += `<div style="color:var(--text-muted);font-size:13px">개발 리스크 항목이 없습니다.</div>`;
+  }
+
+  return html;
+}
+
+function render() {
+  document.getElementById('app').innerHTML = `
+    ${renderHeader()}
+    ${renderStats()}
+    ${renderTabs()}
+    <div class="content">
+      <div class="tab-panel active" id="tab-spec">
+        <div class="left-panel">${renderSpecLeft()}</div>
+        <div class="right-panel">${renderRightPanel()}</div>
+      </div>
+      <div class="tab-panel" id="tab-dev" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderDevPanel()}
+      </div>
+      <div class="tab-panel" id="tab-meeting" style="overflow-y:auto;padding:24px;flex-direction:column">
+        ${renderMeeting()}
+      </div>
+    </div>`;
+}
+
+function boldify(text) {
+  return (text||'').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+const AGENT_COLOR = {
+  planner:   'var(--accent)',
+  developer: 'var(--orange)',
+  qa:        'var(--green)',
+  ta:        'var(--blue)',
+};
+
+function renderMeeting() {
+  const m = D.meeting;
+  if (!m || (!m.rounds && !m.consensus)) {
+    return `<div class="empty-panel">회의록이 없습니다.</div>`;
+  }
+
+  let html = `
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:6px">
+      회의록: ${D.ticket_key} ${D.title} 분석
+    </h2>
+    <div class="meeting-meta">
+      일시: ${m.date||D.analysis_date} | 참가자: ${(m.participants||[]).join(', ')}
+    </div>
+    <div class="meeting-sys">[SYS] 회의 시작</div>
+  `;
+
+  let lastRound = 0;
+  for (const r of (m.rounds||[])) {
+    if (r.round > lastRound && lastRound > 0) {
+      html += `<div class="meeting-sys">[SYS] Round ${r.round} 시작</div>`;
+    }
+    lastRound = r.round;
+    const color = AGENT_COLOR[r.agent_type] || 'var(--accent)';
+    html += `
+      <div class="meeting-block">
+        <div class="meeting-agent" style="color:${color}">Round ${r.round} — ${r.agent}</div>
+        <div class="meeting-content">${boldify(r.content)}</div>
+      </div>`;
+  }
+
+  if ((m.consensus||[]).length) {
+    html += `<div class="meeting-sys">[SYS] 합의 도출</div>
+    <ul class="consensus-list">
+      ${m.consensus.map(c => {
+        const p = (c.priority||'P1');
+        const cls = p === 'P0' ? 'cp0' : p === 'P1' ? 'cp1' : 'cp2';
+        return `<li><span class="cprio ${cls}">${p}</span><span>${boldify(c.action)}</span></li>`;
+      }).join('')}
+    </ul>`;
+  }
+
+  return html;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  const panel = document.getElementById('tab-' + name);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'flex'; }
+}
+
+render();
+</script>
+</body>
+</html>
